@@ -1,12 +1,14 @@
 # PhAENix - Single LLM Agent Development Framework
 
-PhAENix is an advanced, developer-friendly framework for building **single reliable LLM-based autonomous agents**, integrating **task planning**, **validation**, and **execution** into a seamless workflow. It abstracts complex aspects such as prompt engineering, multi-model coordination, and operational flow management—enabling developers to create powerful agents without being overwhelmed by technical intricacies. With a flexible design, PhAENix supports a wide range of use cases while allowing fine-grained control over each component.
+PhAENix is an advanced, developer-friendly framework for building **single reliable LLM-based autonomous agents**, integrating **task planning**, **evaluation**, and **execution** into a seamless workflow. It abstracts complex aspects such as prompt engineering, multi-model coordination, and operational flow management—enabling developers to create powerful agents without being overwhelmed by technical intricacies. With a flexible design, PhAENix supports a wide range of use cases while allowing fine-grained control over each component.
 
+- **R2D2 Native Support**: PhAENix provides seamless connectivity with **R2D2**, a company-internal gateway designed for monitoring and supervising LLM calls. This integration ensures that all external LLM communications comply with corporate governance and tracking requirements. 
 - **Developer-Friendly**: By hiding most of the underlying complexity, this framework makes it straightforward for developers to specify high-level goals such as planning steps and configuring validation without worrying about convoluted implementation details.
 - **Planner Variety**: The framework offers flexible planning options, including step-based planners like GenericPlanner and more complex node-graph planners like GraphPlanner, ensuring that both simple and intricate workflows are supported seamlessly.
-- **Validation Architecture**: It includes a robust validation system that checks outputs at every step, allowing errors to be detected early. This iterative validation significantly enhances overall accuracy by ensuring that tasks are iteratively refined or dynamically adjusted.
+- **Evaluation Architecture**: It includes a robust validation system that checks outputs at every step, allowing errors to be detected early. This iterative validation significantly enhances overall accuracy by ensuring that tasks are iteratively refined or dynamically adjusted.
 - **Custom Configuration**: Users can adjust the framework to use different LLM models for different components—such as planning, validation, or execution—allowing precise control over the agent's behavior. Additionally, customizing prompts for each module allows for specific and tailored interactions at each stage.
-- **Tool & Ul Integration**: The framework supports dynamic tool use and integration with external APls. Developers can call functions, engage in real-time interactions, or retrieve live data as part of the agent's workflow, enabling interactive scenarios and adaptive behavior.
+- **Tool & UI Integration**: The framework supports dynamic tool use and integration with external APls. Developers can call functions, engage in real-time interactions, or retrieve live data as part of the agent's workflow, enabling interactive scenarios and adaptive behavior.
+- **Other Agent Framework Integration**: PhAENix is designed to work smoothly alongside with other Agent development frameworks like **MS AutoGen** and **LangGraph**, allowing developers to combine the strengths of multiple agent frameworks in a single ecosystem. Whether you need robust orchestration with LangGraph or specialized features from MS AutoGen, you can easily plug these tools into your PhAENix-powered agent for a streamlined development experience.
 
 In summary, this LLM agent framework offers the perfect balance between abstraction and customization, empowering developers to create powerful, intelligent agents with minimal effort while ensuring flexibility and precision in every step.
 
@@ -38,7 +40,7 @@ Below are some notable innovation highlights that set PhAENix apart. You can fur
 
 ### Replan
 
-This replan design provides a flexible approach by allowing two distinct failure-handling strategies: **breakdown**, which refines a failing task into simpler subtasks, and **replan**, which reroutes the execution path to an earlier node and modifies future tasks as needed. By dynamically choosing between these strategies whenever a node fails to meet its evaluation threshold, the system can adapt, restructure, and continue executing without having to stop or discard all progress, ultimately achieving more resilient and robust task completion. 
+This replan design provides a flexible approach by allowing two distinct failure-handling strategies: **breakdown**, which refines a failing task into simpler subtasks, and **replan**, which reroutes the execution path to an earlier node and modifies future tasks as needed. By dynamically choosing between these strategies whenever a node fails to meet its evaluation threshold, the system can adapt, restructure, and continue executing without having to stop or discard all progress, ultimately achieving more resilient and robust task completion.
 
 _(Add more detailed explanations or images here.)_
 
@@ -64,22 +66,22 @@ _(Add more detailed explanations or images here.)_
 
 Below is a report comparing PhAENix with two other notable frameworks, **autogen** and **langgraph**, across several key features:
 
-| Feature                                   | **AutoGen**        | **LangGraph**    | **PhAENix**   | 
-| ----------------------------------------- | ------------------ | ---------------- | ------------- |
-| **Multi-Agent Collaboration Framework**   | Yes                | Yes              | No            |
-| **Conversational Agents Interaction**     | Yes                | No               | No            |
-| **Fine-Grained Workflow Control**         | No                 | Yes              | Yes           |
-| **Graph-based Agentic Workflow**          | No                 | Yes              | Yes           |
-| **Status Management**                     | No                 | Yes              | Yes           |
-| **Replay & Debugging**                    | No                 | Yes              | Yes           |
-| **Tool Integration**                      | Yes                | Yes              | Yes           |
-| **Single Step Evaluation**                | No                 | No               | Yes           |
-| **Dynamic Replaning**                     | No                 | No               | Yes           |
-| **Self Reflection & Recovery**            | No                 | No               | Yes           |
-| **Percise Context Management**            | No                 | No               | Yes           |
-| **Customizable LLM Prompts**              | No                 | No               | Yes           |
-| **Developer-Friendliness**                | ⭐️⭐️⭐️              | ⭐️⭐️⭐️⭐️           | ⭐️⭐️⭐️⭐️⭐️     |
-| **Reliability**                           | ⭐️⭐️⭐️              | ⭐️⭐️⭐️            | ⭐️⭐️⭐️⭐️⭐️      |
+| Feature                                 | **AutoGen** | **LangGraph** | **PhAENix**     |
+| --------------------------------------- | ----------- | ------------- | --------------- |
+| **Multi-Agent Collaboration Framework** | Yes         | Yes           | No              |
+| **Conversational Agents Interaction**   | Yes         | No            | No              |
+| **Fine-Grained Workflow Control**       | No          | Yes           | Yes             |
+| **Graph-based Agentic Workflow**        | No          | Yes           | Yes             |
+| **Status Management**                   | No          | Yes           | Yes             |
+| **Replay & Debugging**                  | No          | Yes           | Yes             |
+| **Tool Integration**                    | Yes         | Yes           | Yes             |
+| **Single Step Evaluation**              | No          | No            | Yes             |
+| **Dynamic Replaning**                   | No          | No            | Yes             |
+| **Self Reflection & Recovery**          | No          | No            | Yes             |
+| **Percise Context Management**          | No          | No            | Yes             |
+| **Customizable LLM Prompts**            | No          | No            | Yes             |
+| **Developer-Friendliness**              | ⭐️⭐️⭐️       | ⭐️⭐️⭐️⭐️       | ⭐️⭐️⭐️⭐️⭐️        |
+| **Reliability**                         | ⭐️⭐️⭐️       | ⭐️⭐️⭐️         | ⭐️⭐️⭐️⭐️⭐️        |
 
 ## Installation
 
@@ -137,6 +139,7 @@ from agent_core.agents import Agent
 agent = Agent()
 agent.execute("Who are you?")
 ```
+
 ### Advanced Example
 
 ```python
@@ -181,8 +184,9 @@ agent.execute("Who are you?")
 execution_responses = agent.execution_responses
 execution_history = agent.execution_history
 execution_result = agent.get_execution_result_summary()
-    
+
 ```
+
 ---
 
 ## Feedback & Usage Tracking
