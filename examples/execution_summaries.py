@@ -1,4 +1,4 @@
-# examples/example10.py
+# examples/execution_summaries.py
 
 import sys
 import os
@@ -15,23 +15,16 @@ from agent_core.planners import GenericPlanner
 
 def main():
 
-    agent = Agent(model_name="gemini-1.5-flash-002")
-    agent.planner = GenericPlanner(model_name="gemini-1.5-pro-002")
+    agent = Agent()
+    agent.planner = GenericPlanner()
 
-    context = agent.context
-    print(context)
-
-    context.add_context(
-        "role",
-        f"""
-        you are an digital artist, able to use computer character to draw digital picture.
-        """,
-    )
-    print(context)
-
-    task = "draw a flower"
+    task = "3 steps draw a digital flower using computer characters."
     agent.execute(task)
 
+    execution_responses = agent.execution_responses
+    print(f"Execution Response: {agent.execution_responses}")
+    execution_history = agent.execution_history
+    print(f"Execution History: {execution_history}")
     execution_result = agent.get_execution_result_summary()
     print(f"Execution Result: {execution_result}")
 

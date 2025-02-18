@@ -1,4 +1,4 @@
-# examples/example9.py
+# examples/override_default_prompts.py
 
 import sys
 import os

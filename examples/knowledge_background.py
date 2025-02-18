@@ -1,4 +1,4 @@
-# examples/example7.py
+# examples/knowledge_background.py
 
 import sys
 import os

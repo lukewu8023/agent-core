@@ -1,4 +1,4 @@
-# examples/example12.py
+# examples/llm_chat_utility.py
 
 import sys
 import os

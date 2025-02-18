@@ -1,4 +1,4 @@
-# examples/example4.py
+# examples/graph-based_planner.py
 
 import sys
 import os
@@ -10,19 +10,16 @@ sys.path.insert(0, parent_dir)
 
 
 from agent_core.agents import Agent
-from agent_core.planners import GenericPlanner
+from agent_core.planners import GraphPlanner
 
 
 def main():
-
     agent = Agent()
-    agent.planner = GenericPlanner()
+    agent.planner = GraphPlanner()
 
-    task = "3 steps draw a digital flower using computer characters."
+    task = "3 steps draw a digital dragon using computer emoji characters."
     agent.execute(task)
 
-    execution_history = agent.execution_history
-    print(f"Execution History: {execution_history}")
     execution_result = agent.get_execution_result_summary()
     print(f"Execution Result: {execution_result}")
 

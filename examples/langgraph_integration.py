@@ -1,8 +1,12 @@
-# examples/example15.py
+# examples/langgraph_integration.py
 
+import json
 import sys
 import os
 from typing import TypedDict, Annotated
+
+from langgraph.constants import START, END
+from langgraph.graph import add_messages, StateGraph
 
 # Add the parent directory to sys.path to allow imports from the framework
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -10,8 +14,6 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from agent_core.agents import Agent
-from langgraph.constants import START, END
-from langgraph.graph import add_messages, StateGraph
 
 
 class State(TypedDict):
@@ -34,10 +36,10 @@ def stream_graph_updates(user_input: str):
             print("Assistant:", value["messages"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     graph_builder = StateGraph(State)
     graph_builder.add_node("agent_core", agent_execute)
     graph_builder.add_edge(START, "agent_core")
     graph_builder.add_edge("agent_core", END)
     graph = graph_builder.compile()
-    stream_graph_updates('who are you')
+    stream_graph_updates("who are you")

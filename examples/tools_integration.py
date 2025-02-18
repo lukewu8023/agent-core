@@ -1,4 +1,4 @@
-# examples/example6.py
+# examples/tools_integration.py
 
 import sys
 import os

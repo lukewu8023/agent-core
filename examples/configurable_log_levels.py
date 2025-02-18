@@ -1,4 +1,4 @@
-# examples/example8.py
+# examples/configurable_log_levels.py
 
 import sys
 import os
@@ -32,8 +32,6 @@ def main():
     task = "3 steps draw a flower"
     agent.execute(task)
 
-    execution_history = agent.execution_history
-    print(f"Execution History: {execution_history}")
     execution_result = agent.get_execution_result_summary()
     print(f"Execution Result: {execution_result}")
 

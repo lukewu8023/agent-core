@@ -1,4 +1,4 @@
-# examples/example2.py
+# examples/minimal_agent_creation.py
 
 import sys
 import os
@@ -9,16 +9,12 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from agent_core.agents import Agent
-from agent_core.planners import GenericPlanner
 
 
 def main():
 
-    agent = Agent("gemini-1.5-flash-002")
-    agent.planner = GenericPlanner()
-
-    task = "3 steps draw a flower."
-    agent.execute(task)
+    agent = Agent()
+    agent.execute("Who are you?")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# examples/example1.py
+# examples/step-based_planning.py
 
 import sys
 import os
@@ -9,13 +9,16 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from agent_core.agents import Agent
+from agent_core.planners import GenericPlanner
 
 
 def main():
 
-    agent = Agent(model_name="gemini-1.5-flash-002")
-    agent.execute("Who are you?")
-    print(f"Response: {agent.execution_responses}")
+    agent = Agent()
+    agent.planner = GenericPlanner()
+
+    task = "3 steps draw a flower."
+    agent.execute(task)
 
 
 if __name__ == "__main__":

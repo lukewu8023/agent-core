@@ -1,4 +1,4 @@
-# examples/example11.py
+# examples/evaluators_management.py
 
 import sys
 import os

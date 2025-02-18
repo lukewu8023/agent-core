@@ -1,4 +1,4 @@
-# examples/example3.py
+# examples/distinct_model_setup.py
 
 import sys
 import os
