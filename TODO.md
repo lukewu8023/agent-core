@@ -1,9 +1,13 @@
 # TODO
 
-### Feature
+### Feature v1
 - compatible with autogen
+- execution length limitation
+- data issue in one step due to check component after not able to pass generic validation
 - tool execute try catch exception add evaluator, add suggestion (v1) (done need test)
 - validation retry in generic planner(v1) (done need test)
+- how to debug in the library?
+### Feature v2
 - change context by step(v2)
 - enrich log (input/output/prompt)(v2)
 - knowledge & background rag (v2)
@@ -12,11 +16,11 @@
 
 ### Test
 - more unit testing
+- test replan (breakdown done)
 
 ### Doc
 - read me for each example
-- how to debug in the library?
-- add R2D2 in readme
+- R2D2 guidance
 - add FAQ section
 
 # Completed
@@ -34,6 +38,7 @@
 - change validator to evaluator
 - abstract validator base, unique output return
 - adjust planner prompt to use tool better
+- add R2D2 in readme
 - bug (done)
 ```json
 {
