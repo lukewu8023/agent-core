@@ -27,7 +27,8 @@ PhAENix seamlessly integrates the mythical rebirth of the Phoenix with the LLM A
 
 1. [Key Innovation Features](#key-innovation-features)
    - [Replan](#replan)
-   - [Step Validation](#step-validation)
+   - [Self Reflection](#self-reflection)
+   - [Single Step Evaluation](#single-step-evaluation)
    - [Percise Context Control](#percise-context-control)
 2. [Comparison with Other Frameworks](#comparison-with-other-frameworks)
 3. [Installation](#installation)
@@ -187,7 +188,14 @@ execution_result = agent.get_execution_result_summary()
 
 ```
 
----
+## TODO List
+
+- Dynamically manage context in single step
+- knowledge and background RAG
+- Introduce knowledge graph to collect sufficient information with human-in-loop
+- Support LLM defined max attempt and threshold in evaluation
+- Execution loop control
+- Enrich llm related logs (input/output/prompt)
 
 ## Feedback & Usage Tracking
 
