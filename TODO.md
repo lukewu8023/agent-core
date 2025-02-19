@@ -1,26 +1,31 @@
 # TODO
 
 ### Feature v1
+- compatible with langgraph(*)
 - compatible with autogen
-- execution length limitation
 - data issue in one step due to check component after not able to pass generic validation
 - tool execute try catch exception add evaluator, add suggestion (v1) (done need test)
 - validation retry in generic planner(v1) (done need test)
 - how to debug in the library?
+
 ### Feature v2
 - change context by step(v2)
-- enrich log (input/output/prompt)(v2)
-- knowledge & background rag (v2)
+- enrich llm related log (llm input/output/prompt)(v2)
+- knowledge & background rag(v2)
 - support overwrite validation max attempt and threshold(v2)
 - knowledge graph to collect sufficient information(v2)
+- execution loop control(v2)
 
 ### Test
 - more unit testing
 - test replan (breakdown done)
 
 ### Doc
+
+- R2D2 guidance(*)
+- add trace example for replan and validation(*)
+- better discribe the 3 ways to define plan
 - read me for each example
-- R2D2 guidance
 - add FAQ section
 
 # Completed
@@ -39,16 +44,9 @@
 - abstract validator base, unique output return
 - adjust planner prompt to use tool better
 - add R2D2 in readme
-- bug (done)
-```json
-{
-     "id": "B.2.1.1.2",
-     "task_description": "Select the right wing emoji characters for the dragon, focusing on specific styles and sizes.",
-     "next_nodes": ["B.3"],
-     "validation_threshold": 0.9,
-     "max_attempts": 3
-}
-```
+- TODO list
+- better describe the knowledge and background
+
 - plan: background, knowledge, categories_str, task, tool
 - execute: background, context, tool
 - evaluator: background, context
