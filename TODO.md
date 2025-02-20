@@ -6,7 +6,7 @@
 - data issue in one step due to check component after not able to pass generic validation
 - tool execute try catch exception add evaluator, add suggestion (v1) (done need test)
 - validation retry in generic planner(v1) (done need test)
-- how to debug in the library?
+- reasoning and validation prompt in execute history
 
 ### Feature v2
 - change context by step(v2)
@@ -24,7 +24,7 @@
 
 - R2D2 guidance(*)
 - add trace example for replan and validation(*)
-- better discribe the 3 ways to define plan
+- better describe the 3 ways to define plan
 - read me for each example
 - add FAQ section
 
