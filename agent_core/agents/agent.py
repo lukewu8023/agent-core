@@ -5,6 +5,7 @@ from typing import Optional, List
 from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
 from agent_core.entities.steps import Steps, Step
+from agent_core.models.model_registry import ModelRegistry
 from agent_core.planners.base_planner import BasePlanner
 from agent_core.utils.context_manager import ContextManager
 from agent_core.evaluators.evaluators import get_evaluator
@@ -61,6 +62,8 @@ Response:
         If 'model' is not provided, the default model from config will be used.
         'log_level' can override the framework-wide default for this Agent specifically.
         """
+        # Initialize and load models
+        ModelRegistry.load_models()
 
         # This list holds execution data for each step in sequence.
         super().__init__(self.__class__.__name__, model_name, log_level)

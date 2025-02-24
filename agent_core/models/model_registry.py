@@ -40,6 +40,8 @@ class ModelRegistry:
 
     @classmethod
     def get_model(cls, name: str) -> BaseModel:
+        if len(cls._models) == 0:
+            cls.load_models()
         if name not in cls._models:
             cls.logger.error(f"Model '{name}' not found in registry.")
             raise ValueError(f"Model '{name}' is not supported.")
@@ -53,7 +55,3 @@ class ModelRegistry:
         except Exception as e:
             logger.error(f"Error loading models: {e}")
             raise
-
-
-# Initialize and load models
-ModelRegistry.load_models()
