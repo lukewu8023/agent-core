@@ -3,3 +3,5 @@ python-dotenv~=1.0.1
 pydantic~=2.10.6
 pydantic-settings~=2.7.1
 langchain-openai~=0.3.5
+autogen-agentchat~=0.4.7
+autogen-core~=0.4.7
