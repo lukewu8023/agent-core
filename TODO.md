@@ -1,12 +1,24 @@
 # TODO
 
 ### Feature v1
-- compatible with langgraph(*)
-- compatible with autogen
-- data issue in one step due to check component after not able to pass generic validation
-- tool execute try catch exception add evaluator, add suggestion (v1) (done need test)
-- validation retry in generic planner(v1) (done need test)
+evaluator
+- data issue in one step due to check component after not able to pass generic validation (*)
+- evaluator for tool, only check valid arguments and signature
+- evaluator output structure
+threshold
+- Auto generate evaluation threashold (*)
+- unique threshold pass into calculation (*)
+replan
+- Auto generate missing step (especially new tool call) (*)
+output
 - reasoning and validation prompt in execute history
+- final respose of the task
+- add trace example for replan and validation
+- print evaluator suggestion
+- enrich llm related log (llm input/output/prompt)
+- centrilize output structure
+langgrogh
+- visulizaiton follow langgragh diagram
 
 ### Feature v2
 - change context by step(v2)
@@ -15,15 +27,14 @@
 - support overwrite validation max attempt and threshold(v2)
 - knowledge graph to collect sufficient information(v2)
 - execution loop control(v2)
+- minimize context based on data?
 
 ### Test
 - more unit testing
 - test replan (breakdown done)
+- test retry with same result
 
-### Doc
-
-- R2D2 guidance(*)
-- add trace example for replan and validation(*)
+### Log & Doc
 - better describe the 3 ways to define plan
 - read me for each example
 - add FAQ section
@@ -53,3 +64,7 @@
 - replan: background, knowledge, categories_str, task, tool
 - summary include agent execute result
 - compatible with langgraph
+- compatible with autogen
+- R2D2 guidance
+- tool execute try catch exception add evaluator, add suggestion (v1) 
+- validation retry in generic planner(v1) 
