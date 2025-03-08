@@ -2,6 +2,7 @@
 
 from .coding_evaluator import CodingEvaluator
 from .generic_evaluator import GenericEvaluator
+from .toolcalling_evaluator import ToolCallingEvaluator
 
 
 def get_evaluator(model_name):
@@ -14,6 +15,7 @@ def get_evaluator(model_name):
         "summarization": GenericEvaluator(model_name),
         "action": GenericEvaluator(model_name),
         "coding": CodingEvaluator(model_name),
+        "toolcalling": ToolCallingEvaluator(model_name),
         # You can add more categories here.
         # "default" can also be a fallback if desired:
         "default": GenericEvaluator(model_name),
