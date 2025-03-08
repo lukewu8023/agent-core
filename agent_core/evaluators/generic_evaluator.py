@@ -1,6 +1,7 @@
 # evaluator/generic_evaluator.py
 
 import re
+import json
 from typing import Optional
 from .base_evaluator import BaseEvaluator
 from .entities.evaluator_result import EvaluatorResult
@@ -9,6 +10,8 @@ from .entities.evaluator_result import EvaluatorResult
 class GenericEvaluator(BaseEvaluator):
     DEFAULT_PROMPT = """
 You are an expert evaluator of AI-generated outputs. Evaluate the provided subtask output based on the following criteria:
+- Each criterion is scored on a scale of 1 to 5 (1=very poor, 5=excellent). 
+- For each criterion provide a short justification.
 
 1. **Accuracy** (Score 1-5): The output fulfills the requirements of the subtask accurately.
 2. **Completeness** (Score 1-5): The output addresses all aspects of the subtask.
@@ -19,22 +22,28 @@ You are an expert evaluator of AI-generated outputs. Evaluate the provided subta
 7. **Error Analysis** (Score 1-5): The output is free from factual, grammatical, and logical errors.
 8. **Ethical Compliance** (Score 1-5): The content complies with ethical guidelines and policies.
 
-For each criterion, provide:
-
-- **Score (1-5)**
-- **Justification:** A brief explanation for your score.
-
 At the end:
+Based on the justificaitons of all criteria, provide a **improvement_suggestion** with any improvement suggestions to reach the full score (empty if full score - all scores are 5).
 
-- Calculate the **Total Score**.
-- Provide a final recommendation:
+IMPORTANT: Return your result strictly in **valid JSON** and nothing else, with this structure:
 
-- **Accept Output** if the total score is above 35 and no criterion scored below 3.
-- **Rerun Subtask** if the total score is 35 or below, or if any criterion scored below 3.
+{
+  "points": [
+    {
+      "criterion": "<string>",
+      "score": <integer>,
+      "justification": "<string>"
+    },
+    ...
+  ],
+  "improvement_suggestion": "<string>"
+}
 
-- If recommending a rerun, provide suggestions on how to improve the output.
-- If output is an incorrect and unexpected structure in response, provide the structure evaluation output still (Score 0 for each criteria)
-- If output is incorrect tool arguments and unexpected result when invoke the tool, provide the change suggestion and the structure evaluation output still (Score 0 for each criteria)
+Do not include any extra keys or text outside this JSON.
+
+- If output is an incorrect and unexpected structure in response, provide the structure evaluation output still (Score 0 for each criterion)
+- If output is 'incorrect tool arguments and unexpected result' when invoke the tool, provide the change suggestion and the structure evaluation output still (Score 0 for each criterion)
+
 ---
 
 **Background**
@@ -67,7 +76,9 @@ At the end:
         self, root_task, request, response, background, context_manager
     ) -> EvaluatorResult:
         """
-        Mandatory method from BaseEvaluator. Must return (decision, score, details).
+        1) Build the evaluation prompt
+        2) Get the LLM's JSON-based evaluation
+        3) Parse it
         """
         prompt_text = self.prompt.format(
             root_task=root_task,
@@ -77,76 +88,47 @@ At the end:
             context=context_manager.context_to_str(),
         )
         evaluation_response = self._model.process(prompt_text)
-        decision, total_score, scores = self.parse_scored_evaluation_response(
+
+        # parse the JSON
+        decision, score, suggestion, details = self.parse_scored_evaluation_response(
             evaluation_response
         )
-        details = {"score_breakdown": scores, "raw_evaluation": evaluation_response}
-        return EvaluatorResult(decision, total_score, details)
+
+        return EvaluatorResult(decision, score, suggestion, details)
 
     def default_prompt(self):
         return self.DEFAULT_PROMPT
 
-    def parse_scored_evaluation_response(self, evaluation_response):
+    def parse_scored_evaluation_response(self, evaluation_response: str):
         """
-        Attempts to parse numeric scores from the text and compute a total_score.
-        We also check if any single score < 3 triggers a rerun decision.
+        Attempt to parse the JSON. If invalid, treat as "Rerun Subtask" with 0 score.
         """
-        scores = []
-        total_score = 0
+        try:
+            data = json.loads(evaluation_response)
+            points = data.get("points", [])
 
-        lines = evaluation_response.strip().split("\n")
-        for line in lines:
-            # Several regex attempts to capture "Score: <digit>"
-            match_1 = re.match(
-                r"\d+\.\s\*\*([A-Za-z\s]+)\*\*\s\(Score\s1-5\):\s*Score:\s*(\d)", line
-            )
-            match_2 = re.match(r"\d+\.\s\*\*([A-Za-z\s]+) \(Score (\d+)\)", line)
-            match_3 = re.match(
-                r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\(Score:? (\d+)\)\*\*", line
-            )
-            match_4 = re.match(r"\d+\.\s+\*\*([A-Za-z\s]+)\*\* \(Score (\d+)\):", line)
-            match_5 = re.match(r"\*\*([A-Za-z\s]+)\s*\(Score\s1-5\):\s*(\d+)\*\*", line)
-            match_6 = re.match(
-                r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\(Score\s1-5\):\*\*\s*(\d+)", line
-            )
-            match_7 = re.match(
-                r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\(Score\s1-5\):\s*(\d+)\*\*", line
-            )
-            match_8 = re.match(
-                r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\(Score\s1-5\)\*\*:\s*(\d+)", line
-            )
-            match_9 = re.match(r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\((\d+)/5\):\*\*", line)
-            match_10 = re.match(r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\((\d+)\):\*\*", line)
-            match_11 = re.match(
-                r"\d+\.\s+\*\*([A-Za-z\s]+)\s*\(Score:\s*(\d+)\):\*\*", line
-            )
-            match = (
-                match_1
-                or match_2
-                or match_3
-                or match_4
-                or match_5
-                or match_6
-                or match_7
-                or match_8
-                or match_9
-                or match_10
-                or match_11
-            )
+            """Extract scores from JSON and calculate the total score."""
+            scores = [point["score"] for point in points]
+            total_score = sum(scores)
 
-            if match:
-                criterion = match.group(1).strip()
-                score = int(match.group(2))
-                scores.append((criterion, score))
-                total_score += score
+            # Check if any criterion scored below 3
+            any_low_scores = any(score < 3 for _, score in scores)
 
-        # Check if any criterion scored below 3
-        any_low_scores = any(score < 3 for _, score in scores)
+            # Convert total_score from 0..40 to 0..1 scale for the node's final check
+            numeric_score = float(total_score) / 40.0
 
-        # Final decision logic
-        if float(total_score) / 40.0 > self.evaluation_threshold and not any_low_scores:
-            decision = "Accept Output"
-        else:
-            decision = "Rerun Subtask"
+            # Final decision logic
+            if numeric_score > self.evaluation_threshold and not any_low_scores:
+                recommendation = "Accept Output"
+            else:
+                recommendation = "Rerun Subtask"
 
-        return decision, total_score, scores
+            improvement_suggestion = data.get("improvement_suggestion", "")
+            # We will keep the entire JSON in details for reference
+            details = data
+
+            return recommendation, numeric_score, improvement_suggestion, details
+        except Exception as e:
+            # If parse fails, fallback
+            details = {"parse_error": str(e), "raw_response": evaluation_response}
+            return ("Rerun Subtask", 0, "Rerun this step.", details)
