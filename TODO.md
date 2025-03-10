@@ -3,21 +3,22 @@
 ### Feature v1
 evaluator
 - data issue in one step due to check component after not able to pass generic validation (*)
-- evaluator for tool, only check valid arguments and signature
-- evaluator output structure
+- evaluator for tool, only check valid arguments and signature (done need test)
+- evaluator output structure (done need test)
 threshold
-- Auto generate evaluation threashold (*)
-- unique threshold pass into calculation (*)
+- Auto generate evaluation threashold (done need test)
+- unique threshold pass into calculation (done need test)
 replan
-- Auto generate missing step (especially new tool call) (*)
+- Auto generate missing step (especially new tool call) (done need test)
 output
 - reasoning and validation prompt in execute history
 - final respose of the task
-- add trace example for replan and validation
 - print evaluator suggestion
 - enrich llm related log (llm input/output/prompt)
 - centrilize output structure
-langgrogh
+bug
+- return json has "/" will cause crash
+langgragh
 - visulizaiton follow langgragh diagram
 
 ### Feature v2
@@ -36,6 +37,7 @@ langgrogh
 
 ### Log & Doc
 - better describe the 3 ways to define plan
+- add trace example for replan and validation
 - read me for each example
 - add FAQ section
 

@@ -22,7 +22,8 @@ class GenericPlanner(BasePlanner):
             "description": "Get the eggs from the fridge and put them on the table.",
             "use_tool": true,
             "tool_name": "Event",
-            "category": "action"
+            "category": "action",
+            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
         },
         ...
     ]
@@ -36,7 +37,8 @@ class GenericPlanner(BasePlanner):
             "name": "Plan code structure",
             "description": "Outline the classes and methods.",
             "use_tool": false,
-            "category": "coding"
+            "category": "coding",
+            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
         },
         ...
     ]

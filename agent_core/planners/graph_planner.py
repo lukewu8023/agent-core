@@ -77,6 +77,14 @@ class PlanGraph:
     replan_history: ReplanHistory = field(default_factory=ReplanHistory)
     current_node_id: Optional[str] = None
 
+    # We'll store some reference info for replan
+    background: str = ""
+    knowledge: str = ""
+    categories: Optional[List[str]] = None
+    task: str = ""
+    tools: str = ""  # textual representation from tool_knowledge_format
+    prompt: str = ""  # The replan prompt if needed
+
     def add_node(self, node: Node):
         self.nodes[node.id] = node
         if self.start_node_id is None:
@@ -91,16 +99,15 @@ class PlanGraph:
 
 def _should_replan(node: Node) -> bool:
     """
-    Checks if the node's last result is below threshold and attempts are exceeded.
+    If last result < threshold and attempts are exhausted => replan
     """
     if not node.execution_results:
         return False
     last_entry = node.execution_results[-1]
-    if isinstance(last_entry, ExecutionResult):
-        last_score = last_entry.evaluation_score
-    else:
+    if not isinstance(last_entry, ExecutionResult):
         return False
 
+    last_score = last_entry.evaluation_score
     if last_score >= node.evaluation_threshold:
         return False
     elif node.current_attempts >= node.max_attempts:
@@ -113,18 +120,16 @@ def _should_replan(node: Node) -> bool:
 class GraphPlanner(BasePlanner):
     """
     A planner that builds a PlanGraph, uses context, and executes node-based logic with re-planning.
-    Inherits from BasePlanner instead of GenericPlanner.
     """
 
     DEFAULT_EXECUTE_PROMPT = """
-
 <Background>
 {background}
 </Background>
 
 {context}
 
-Now, based on the above background and context, process the following task, please notice not to repeat those responses in the failed attempts and take those suggestions before respond.
+Now, based on the above background and context, process the following task, being mindful not to repeat or reintroduce errors from previous failed attempts and respond with those suggestions:
 
 <Task>
 <Root Task>
@@ -163,38 +168,51 @@ If task use tool is false, example:
 </Output Example>
 """
 
-    DEFAULT_REPLAN_PROMPT = """
+    DEFAULT_FAILURE_REPLAN_PROMPT = """
 You are an intelligent assistant helping to adjust a task execution plan represented as a graph of subtasks. Below are the details:
 
-**Background:**
+<Background>
 {background}
+</Background>
 
-**Knowledge:**
+<Knowledge>
 {knowledge}
+</Knowledge>
 
-**Tools:**
+<Tools>
 {tools_knowledge}
+</Tools>
 
-**Root Task:**
-{root_task}
-
-**Categories:**
+<Categories>
 {categories_str}
+</Categories>
 
-**Current Plan:**
+<Root Task>
+{root_task}
+</Root Task>
+
+<Current Plan>
 {plan_summary}
+</Current Plan>
 
-**Execution History:**
+<Execution History>
 {execution_history}
 (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. 0.9 is the threshold. Less than 0.9 is failed.)
+</Execution History>
 
-**Failure Reason:**
+<Failure Reason>
 {failure_reason}
+</Failure Reason>
 
-**Replanning History:**
+<Replanning History>
 {replan_history}
+</Replanning History>
 
-**Instructions:**
+<Current Node ID>
+{current_node_id}
+</Current Node ID>
+
+<Instructions>
 - Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
     1. **breakdown**: Break down the task of failed node {current_node_id} into smaller subtasks.
     2. **replan**: Go back to a previous node for replanning, 
@@ -208,26 +226,89 @@ You are an intelligent assistant helping to adjust a task execution plan represe
     "action": "breakdown" or "replan",
     "new_subtasks": [  // Required if action is "breakdown"
         {{
-            "id": "unique_task_id",
-            "task_description": "Description of the subtask",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
-            "evaluation_threshold": 0.9,
+            "node_id": "...", // unique task id
+            "task_description": "...", // Description of the subtask
+            "next_node": ["..."], // next node id
+            "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
             "max_attempts": 3
         }}
     ],
-    "restart_node_id": "node_id",  // Required if action is "replan"
-    "modifications": [  // Optional, used if action is "replan"
+    "restart_node_id": "...", // Required if action is "replan"
+    "modifications": [
         {{
-            "node_id": "node_to_modify_id",
-            "task_description": "Modified description",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
-            "evaluation_threshold": 0.9,
+            "node_id": "...",
+            "task_description": "...",
+            "next_node": ["..."],
+            "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
             "max_attempts": 3
         }}
     ],
-    "rationale": "Explanation of your reasoning here"
+    "rationale": "..." // explanation of your reasoning here
 }}
+```
 
+**Note:** Ensure your response is valid JSON, without any additional text or comments.
+</Instructions>
+"""
+
+    # post-success replan prompt:
+    DEFAULT_SUCCESS_REPLAN_PROMPT = """
+You are an intelligent planner. A subtask just succeeded. We can optionally add or adjust future steps if we see it’s necessary (maybe some information is missing or an additional tool call is beneficial).
+
+<Background>
+{background}
+</Background>
+
+<Knowledge>
+{knowledge}
+</Knowledge>
+
+<Tools>
+{tools_knowledge}
+</Tools>
+
+<Categories>
+{categories_str}
+</Categories>
+
+<Root Task>
+{root_task}
+</Root Task>
+
+<Plan & Execution>
+(each node with results if executed):
+{plan_summary}
+</Plan & Execution>
+
+<Current Node ID>
+{current_node_id}
+</Current Node ID>
+
+<Instructions>
+Decide if we should:
+	1.	do nothing (action = “none”) if plan is good enough to achieve the root task, or
+	2.	modify the future steps in the plan (action = “replan”)
+
+Return valid JSON, e.g.:
+
+```json
+{
+    "action": "none" or "replan",
+    "modifications": [ // build full steps to replace the unexecuted steps
+        {{
+            "node_id": "...",
+            "task_description": "...",
+            "next_node": ["..."],
+            "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
+            "max_attempts": 3
+        }}
+    ],
+    "rationale": "..." // explanation of your reasoning here
+}
+```
+
+Include only valid JSON. If “action” = “none”, leave “modifications” as empty arrays.
+</Instructions>
 """
 
     def __init__(self, model_name: str = None, log_level: Optional[str] = None):
@@ -235,21 +316,28 @@ You are an intelligent assistant helping to adjust a task execution plan represe
         self.plan_graph: Optional[PlanGraph] = None
         self.context_manager = ContextManager()
 
-        self._replan_prompt = self.DEFAULT_REPLAN_PROMPT
         self._execute_prompt = self.DEFAULT_EXECUTE_PROMPT
+        self._failure_replan_prompt = self.DEFAULT_FAILURE_REPLAN_PROMPT
+        self._success_replan_prompt = self.DEFAULT_SUCCESS_REPLAN_PROMPT
 
     @property
-    def replan_prompt(self) -> str:
-        """Prompt for replan instructions in call_llm_for_replan."""
-        return self._replan_prompt
+    def failure_replan_prompt(self) -> str:
+        return self._failure_replan_prompt
 
-    @replan_prompt.setter
-    def replan_prompt(self, value: str):
-        self._replan_prompt = value
+    @failure_replan_prompt.setter
+    def failure_replan_prompt(self, value: str):
+        self._failure_replan_prompt = value
+
+    @property
+    def success_replan_prompt(self) -> str:
+        return self._success_replan_prompt
+
+    @success_replan_prompt.setter
+    def success_replan_prompt(self, value: str):
+        self._success_replan_prompt = value
 
     @property
     def execute_prompt(self) -> str:
-        """Prompt for node prompt"""
         return self._execute_prompt
 
     @execute_prompt.setter
@@ -284,8 +372,7 @@ You are an intelligent assistant helping to adjust a task execution plan represe
 
         # Convert Steps -> Node objects in a new PlanGraph
         plan_graph = PlanGraph()
-
-        plan_graph.prompt = self._replan_prompt  # If needed for replan calls
+        plan_graph.prompt = self._failure_replan_prompt  # If needed for replan calls
         plan_graph.background = background
         plan_graph.knowledge = knowledge
         plan_graph.categories = categories
@@ -308,8 +395,9 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                 task_tool_name=step.tool_name,
                 task_tool=tool_map.get(step.tool_name) if step.tool_name else None,
                 next_nodes=[next_node_id] if next_node_id else [],
-                max_attempts=3,
+                # max_attempts=3,
                 task_category=step.category,
+                evaluation_threshold=step.evaluation_threshold,
             )
             plan_graph.add_node(node)
 
@@ -401,6 +489,12 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                         result=str(response),
                     )
                 )
+
+                # Post-success replan check
+                # We'll see if we want to add or replace future steps on the fly.
+                self._success_replan(pg, node)
+
+                # Move to next node if it still exists
                 if node.next_nodes:
                     pg.current_node_id = node.next_nodes[0]
                 else:
@@ -420,8 +514,8 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                     }
 
                     self.logger.warning(f"Replanning needed at Node {node.id}")
-                    failure_info = self.prepare_failure_info(node, details)
-                    replan_response = self.call_llm_for_replan(pg, failure_info)
+                    failure_info = self._prepare_failure_info(node, details)
+                    replan_response = self._failure_replan(pg, failure_info)
                     adjustments = LLMChat(self.model_name).parse_llm_response(
                         replan_response
                     )
@@ -442,8 +536,8 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                         self.logger.info(
                             f"New plan after adjusted: {self.plan_graph.nodes}"
                         )
-                        restart_node_id = self.determine_restart_node(adjustments)
-                        self.cleanup_context(
+                        restart_node_id = self._determine_restart_node(adjustments)
+                        self._cleanup_context(
                             pg.current_node_id, adjustments.get("restart_node_id")
                         )
                         if restart_node_id:
@@ -557,7 +651,7 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                 output=result, evaluation_score=1.0, timestamp=datetime.now()
             )
             node.execution_results.append(execution_result)
-            return execution_result, ""
+            return execution_result, {}
 
         chosen_cat = (
             node.task_category if node.task_category in evaluators else "default"
@@ -571,27 +665,25 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                 output=result, evaluation_score=1.0, timestamp=datetime.now()
             )
             node.execution_results.append(execution_result)
-            return execution_result
+            return execution_result, {}
 
         evaluator_result = evaluator.evaluate(
             root_task, node.task_description, result, background, context_manager
         )
-        numeric_score = float(evaluator_result.score) / 40.0
+        numeric_score = float(evaluator_result.score)  # up to caller to interpret
         execution_result = ExecutionResult(
             output=result, evaluation_score=numeric_score, timestamp=datetime.now()
         )
         node.execution_results.append(execution_result)
         return execution_result, evaluator_result.details
 
-    def prepare_failure_info(self, node: Node, details: str) -> Dict:
+    def _prepare_failure_info(self, node: Node, details: dict) -> Dict:
         """
         Produce the context for replan prompt.
         """
         pg = self.plan_graph
         return {
-            "failure_reason": (
-                node.failed_reasons[-1] if node.failed_reasons else "No"
-            ),
+            "failure_reason": node.failed_reasons[-1] if node.failed_reasons else "",
             "execution_history": [
                 {
                     "node_id": n.id,
@@ -603,10 +695,116 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                 for n in pg.nodes.values()
             ],
             "replan_history": pg.replan_history.history,
-            "evaluator": details,
+            "details": details,
         }
 
-    def call_llm_for_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
+    def _success_replan(self, plan_graph: PlanGraph, node: Node):
+        """
+        After a node is successfully executed, optionally adjust remaining steps
+        in the plan using the DEFAULT_SUCCESS_REPLAN_PROMPT. If 'action' = 'none',
+        do nothing; if 'action' = 'replan', we replace future steps with the
+        modifications from the LLM.
+        """
+        # Prepare placeholders for the success replan prompt
+        categories_str = (
+            ", ".join(plan_graph.categories)
+            if plan_graph.categories
+            else "(Not defined)"
+        )
+        plan_summary = plan_graph.summarize_plan()
+
+        # Build the final prompt
+        final_prompt = self._success_replan_prompt.format(
+            background=plan_graph.background,
+            knowledge=plan_graph.knowledge,
+            tools_knowledge=plan_graph.tools,
+            categories_str=categories_str,
+            root_task=plan_graph.task,
+            plan_summary=plan_summary,
+            current_node_id=node.id,
+        )
+
+        self.logger.info("Calling model for success replan instructions...")
+        response = self._model.process(final_prompt)
+        self.logger.info(f"Success replan response:\n{response}")
+
+        try:
+            data = json.loads(response)
+            action = data.get("action", "none")
+
+            if action == "none":
+                self.logger.info("No changes to the plan after success.")
+                return
+
+            elif action == "replan":
+                self.logger.info("Replanning the unexecuted steps after success...")
+                modifications = data.get("modifications", [])
+
+                # 1) Remove all unexecuted steps from this node onward.
+                #    This example removes any nodes listed in node.next_nodes, plus any "chain" from them.
+                to_remove = list(node.next_nodes)  # immediate next(s)
+                # Optionally, you might do a BFS/DFS to remove all reachable children, if desired:
+                # gather all reachable nodes in future
+                stack = list(node.next_nodes)
+                visited = set()
+                while stack:
+                    nxt = stack.pop()
+                    if nxt in visited:
+                        continue
+                    visited.add(nxt)
+                    if nxt in plan_graph.nodes:
+                        # add all *that* node’s next_nodes to stack
+                        stack.extend(plan_graph.nodes[nxt].next_nodes)
+                        to_remove.append(nxt)
+
+                # Actually remove them from the plan
+                for rm_id in to_remove:
+                    if rm_id in plan_graph.nodes:
+                        del plan_graph.nodes[rm_id]
+
+                # 2) Add each modification as a new node (fully replacing the steps).
+                new_node_ids = []
+                for mod in modifications:
+                    mod_id = mod.get("node_id")
+                    if not mod_id:
+                        self.logger.warning(
+                            f"Skipping modification with no node_id: {mod}"
+                        )
+                        continue
+
+                    new_node = Node(
+                        id=mod_id,
+                        task_description=mod.get("task_description", "No description"),
+                        next_nodes=mod.get("next_node", []),
+                        evaluation_threshold=mod.get("evaluation_threshold", 0.9),
+                        max_attempts=mod.get("max_attempts", 3),
+                        task_category=mod.get("step_category", "default"),
+                    )
+                    plan_graph.add_node(new_node)
+                    new_node_ids.append(mod_id)
+
+                # 3) Link the current node to the first new node if it exists
+                if new_node_ids:
+                    node.next_nodes = [new_node_ids[0]]
+                else:
+                    # If no new steps were added, then the plan ends here
+                    node.next_nodes = []
+
+                self.logger.info(
+                    "Successfully applied 'replan' modifications after success."
+                )
+
+            else:
+                self.logger.warning(
+                    f"Unknown action '{action}' in success replan. No changes made."
+                )
+
+        except json.JSONDecodeError:
+            self.logger.warning(
+                "Post-success replan response is not valid JSON. Skipping replan."
+            )
+
+    def _failure_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
         plan_summary = plan_graph.summarize_plan()
         context_str = (
             self.context_manager.context_to_str() if self.context_manager else ""
@@ -635,7 +833,7 @@ You are an intelligent assistant helping to adjust a task execution plan represe
         self.logger.info(f"Replan response: {response}")
         return response
 
-    def determine_restart_node(self, adjustments: str) -> Optional[str]:
+    def _determine_restart_node(self, adjustments: str) -> Optional[str]:
         # adjustments = json.loads(llm_response)
         action = adjustments.get("action")
         if action == "replan":
@@ -677,7 +875,7 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                 )
             return None
 
-    def cleanup_context(self, current_node_id, restart_node_id):
+    def _cleanup_context(self, current_node_id, restart_node_id):
         input_text = self.context_manager.context_to_str()
         nodes_to_remove = self.context_manager.identify_context_key(
             input_text, current_node_id, restart_node_id
@@ -721,8 +919,8 @@ def apply_adjustments_to_plan(
                 id=new_subtask_id,
                 task_description=st.get("task_description", "No description provided."),
                 next_nodes=st.get("next_nodes", []),
-                evaluation_threshold=st.get("evaluation_threshold", 0.9),
-                max_attempts=st.get("max_attempts", 3),
+                evaluation_threshold=st.get("evaluation_threshold"),
+                max_attempts=st.get("max_attempts"),
                 task_category=st.get("step_category", "default"),
             )
             plan_graph.add_node(new_node)
@@ -771,8 +969,8 @@ def apply_adjustments_to_plan(
                     id=mod_id,
                     task_description=new_description,
                     next_nodes=mod.get("next_nodes", []),
-                    evaluation_threshold=mod.get("evaluation_threshold", 0.9),
-                    max_attempts=mod.get("max_attempts", 3),
+                    evaluation_threshold=mod.get("evaluation_threshold"),
+                    max_attempts=mod.get("max_attempts"),
                     task_category=mod.get("step_category", "default"),
                 )
                 plan_graph.add_node(new_node)
