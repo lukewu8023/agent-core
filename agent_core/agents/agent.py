@@ -114,17 +114,16 @@ Response:
         )
 
         # Now just call planner's execute_plan(...) in a unified way
-        self.planner.execute_plan(
+        self._execution_history = self.planner.execute_plan(
             task=task,
             plan=plan,
-            execution_history=self._execution_history,
             context_manager=self.context,
             background=self.background,
             evaluators_enabled=self.evaluators_enabled,
             evaluators=self.evaluators,
         )
-    
-        return self.get_final_response(task)
+
+        return self._execution_history.get_last_step_output()
 
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
@@ -146,7 +145,7 @@ Response:
 
     def get_final_response(self, task: str) -> str:
         history_text = self._execution_history.execution_history_to_str()
-        final_response_prompt=self.response_prompt.format(task=task,history_text=history_text)
+        final_response_prompt = self.response_prompt.format(task=task, history_text=history_text)
         self.logger.info("Generating final response.")
         final_response = self._model.process(final_response_prompt)
         return str(final_response)

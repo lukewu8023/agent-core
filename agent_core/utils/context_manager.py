@@ -18,6 +18,10 @@ class ContextManager:
         """Return the underlying dictionary (if needed)."""
         return self.context
 
+    def get_context_by_key(self, key):
+        """Return the underlying dictionary (if needed)."""
+        return self.context.get(key)
+
     def get_context_str(self):
         return self.context_to_str()
 

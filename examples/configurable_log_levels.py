@@ -26,6 +26,7 @@ def main():
 
     agent = Agent(model_name="gemini-1.5-flash-002")
     agent.planner = GenericPlanner(model_name="gemini-1.5-pro-002")
+    agent.enable_evaluators()
     # agent = Agent(model="gpt-4o-mini", log_level="ERROR")
     # agent.planner = GenericPlanner(model="gpt-3.5-turbo", log_level="DEBUG")
 

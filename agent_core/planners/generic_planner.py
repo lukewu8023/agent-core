@@ -1,11 +1,11 @@
 # planners/generic_planner.py
 
-import json
 from typing import List, Optional, Dict
 from langchain_core.tools import BaseTool
-from .base_planner import BasePlanner, tool_knowledge_format, background_format
+from .base_planner import BasePlanner, tool_knowledge_format
 from ..entities.steps import Steps, Step
 from ..evaluators import BaseEvaluator
+from ..utils.context_manager import ContextManager
 
 
 class GenericPlanner(BasePlanner):
@@ -18,11 +18,11 @@ class GenericPlanner(BasePlanner):
 {
     "steps": [
         {
-            "step_name": "Prepare eggs",
-            "step_description": "Get the eggs from the fridge and put them on the table.",
+            "name": "Prepare eggs",
+            "description": "Get the eggs from the fridge and put them on the table.",
             "use_tool": true,
             "tool_name": "Event",
-            "step_category": "action"
+            "category": "action"
         },
         ...
     ]
@@ -33,10 +33,10 @@ class GenericPlanner(BasePlanner):
 {
     "steps": [
         {
-            "step_name": "Plan code structure",
-            "step_description": "Outline the classes and methods.",
+            "name": "Plan code structure",
+            "description": "Outline the classes and methods.",
             "use_tool": false,
-            "step_category": "coding"
+            "category": "coding"
         },
         ...
     ]
@@ -70,7 +70,7 @@ class GenericPlanner(BasePlanner):
 
         final_prompt = self.prompt.format(
             knowledge=knowledge,
-            background=background_format(background),
+            background=background,
             task=task,
             tools_knowledge=tools_knowledge,
             example_json1=self.EXAMPLE_JSON1,
@@ -78,8 +78,7 @@ class GenericPlanner(BasePlanner):
             categories_str=categories_str,
         )
 
-        response = self._model.process(final_prompt)
-        response_text = str(response)
+        response_text = self._model.process(final_prompt)
 
         if not response_text or not response_text.strip():
             error_msg = "LLM returned an empty or null response."
@@ -91,16 +90,12 @@ class GenericPlanner(BasePlanner):
         # Minor cleanup of possible code fences
         cleaned = response_text.replace("```json", "").replace("```", "").strip()
 
-        # Attempt JSON parse
         try:
-            data = json.loads(cleaned)
-            steps_data = data.get("steps", [])
-        except json.JSONDecodeError as e:
+            plan = Steps.model_validate_json(cleaned)
+        except Exception as e:
             self.logger.error(f"Failed to parse JSON: {e}")
             self.logger.error(f"Raw LLM response was: {cleaned}")
             raise ValueError("Invalid JSON format in planner response.")
-
-        plan = self.analyse_result(steps_data, categories)
         self.logger.info(f"Got {len(plan.steps)} steps from the LLM.")
         return plan
 
@@ -108,10 +103,9 @@ class GenericPlanner(BasePlanner):
         self,
         plan: Steps,
         task: str,
-        execution_history: Steps,
         evaluators_enabled: bool,
         evaluators: Dict[str, BaseEvaluator],
-        context_manager=None,
+        context_manager: ContextManager,
         background: str = "",
     ):
         """
@@ -121,22 +115,20 @@ class GenericPlanner(BasePlanner):
         self.logger.info(f"Executing plan with {len(plan.steps)} steps.")
 
         for idx, step in enumerate(plan.steps, 1):
-            context_section = (
-                context_manager.context_to_str() if context_manager else ""
-            )
+            context_section = context_manager.context_to_str() if context_manager else ""
             final_prompt = f"""
-{context_section}
-{background_format(background)}
-<Task>
-<Root Task>
-{task}
-</Root Task>
-{step.description}
-</Task>
+                {context_section}\n
+                **Background**
+                {background}\n
+                ***Root Task***
+                {task}\n
+                **Sub Task**
+                {step.description}
             """
-
+            step.prompt = final_prompt
             self.logger.info(f"Executing Step {idx}: {step.description}")
             response = self._model.process(final_prompt)
+            step.result = response
             self.logger.info(f"Response for Step {idx}: {response}")
 
             # Optional Evaluation
@@ -147,65 +139,60 @@ class GenericPlanner(BasePlanner):
                 evaluator_result = evaluator.evaluate(
                     task, step.description, response, background, context_manager
                 )
-                self.logger.info(
-                    f"Evaluator Decision: {evaluator_result.decision}, Score: {evaluator_result.score}"
-                )
+                step.add_evaluator_result(evaluator_result)
+                self.logger.info(evaluator_result.to_log())
+
                 while evaluator_result.score / 40 <= evaluator.evaluation_threshold\
                         and evaluator.max_attempt - 1 > attempt:
                     self.logger.info(f"Executing Step {idx} Failed Attempt {attempt}: {step.description}")
-                    replan_prompt = f"""
-                        {context_section}
-                        {background_format(background)}
-                        <Task>
-                        <Root Task>
-                        {task}
-                        </Root Task>
-                        {step.description}
-                        </Task>
-                        <Evaluator/>
+                    retry_step = Step(name=step.name, description=step.description)
+                    retry_prompt = f"""
+                        {final_prompt}\n
+                        **Failed Evaluate Response**
+                        {response} 
+                        **Evaluator**
                         {evaluator_result.details}
-                        <Evaluator>
                         """
-                    response = self._model.process(replan_prompt)
+                    retry_step.prompt = retry_prompt
+                    response = self._model.process(retry_prompt)
+                    retry_step.result = response
                     evaluator_result = evaluator.evaluate(
                         task, step.description, response, background, context_manager
                     )
+                    retry_step.add_evaluator_result(evaluator_result)
+                    step.add_retry(retry_step)
                     self.logger.info(f"Response for Rerun Step {idx} Failed Attempt {attempt}: {response}")
                     attempt = attempt + 1
 
-            # Record the step execution
-            execution_history.add_step(
-                Step(name=step.name, description=step.description, result=str(response))
-            )
-            context_manager.add_context(
-                "Execution History",
-                execution_history.execution_history_to_str(),
-            )
-        return "Task execution completed using GenericPlanner."
-
-    def analyse_result(self, steps_data, categories):
-        valid_categories = set(categories) if categories else set()
-        # Convert steps_data to Step objects
-        plan = Steps()
-        for sd in steps_data:
-            name = sd.get("step_name")
-            desc = sd.get("step_description")
-            use_tool = sd.get("use_tool")
-            tool_name = sd.get("tool_name")
-            raw_cat = sd.get("step_category", "default")
-
-            # If LLM returned a category not in recognized set, fallback to 'default'
-            final_cat = raw_cat if raw_cat in valid_categories else "default"
-
-            if name and desc:
-                step = Step(
-                    name=name,
-                    description=desc,
-                    use_tool=use_tool,
-                    tool_name=tool_name,
-                    category=final_cat,
-                )
-                plan.add_step(step)
+            if context_manager:
+                context_manager.add_context("Execution History", step.to_success_context(idx))
             else:
-                self.logger.warning(f"Incomplete step data: {sd}")
+                context_manager.get_context_by_key("Execution History") + step.to_success_context(idx)
         return plan
+
+    # def analyse_result(self, steps_data, categories):
+    #     valid_categories = set(categories) if categories else set()
+    #     # Convert steps_data to Step objects
+    #     plan = Steps()
+    #     for sd in steps_data:
+    #         name = sd.get("step_name")
+    #         desc = sd.get("step_description")
+    #         use_tool = sd.get("use_tool")
+    #         tool_name = sd.get("tool_name")
+    #         raw_cat = sd.get("step_category", "default")
+    #
+    #         # If LLM returned a category not in recognized set, fallback to 'default'
+    #         final_cat = raw_cat if raw_cat in valid_categories else "default"
+    #
+    #         if name and desc:
+    #             step = Step(
+    #                 name=name,
+    #                 description=desc,
+    #                 use_tool=use_tool,
+    #                 tool_name=tool_name,
+    #                 category=final_cat,
+    #             )
+    #             plan.add_step(step)
+    #         else:
+    #             self.logger.warning(f"Incomplete step data: {sd}")
+    #     return plan

@@ -228,7 +228,6 @@ You are an intelligent assistant helping to adjust a task execution plan represe
     "rationale": "Explanation of your reasoning here"
 }}
 
-**Note:** Ensure your response is valid JSON, without any additional text or comments.
 """
 
     def __init__(self, model_name: str = None, log_level: Optional[str] = None):
@@ -325,7 +324,6 @@ You are an intelligent assistant helping to adjust a task execution plan represe
         self,
         plan: Steps,
         task: str,
-        execution_history: Steps,
         evaluators_enabled: bool,
         evaluators: dict,
         context_manager: ContextManager = None,
@@ -336,6 +334,7 @@ You are an intelligent assistant helping to adjust a task execution plan represe
         'steps' is ignored in practice, because we use self.plan_graph.
         This signature is here for consistency with the BasePlanner interface.
         """
+        execution_history = Steps()
         if not self.plan_graph:
             self.logger.error(
                 "No plan graph found. Need to generate plan graph by plan() first."
@@ -387,9 +386,9 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                         self.context_manager.add_context(
                             key,
                             f"""
-Task description: {node.task_description}
-Task response: {response}
-                        """,
+                            Task description: {node.task_description}
+                            Task response: {response}
+                            """,
                         )
                     # Keep the raw response in node's execution_results for reference
                     node.execution_results.append(response)
@@ -467,7 +466,7 @@ Task response: {response}
                         self.context_manager.add_context(
                             key,
                             f"""
-Task response: {response}
+                            Task response: {response}
                             """,
                         )
 

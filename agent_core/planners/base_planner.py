@@ -17,13 +17,6 @@ def tool_knowledge_format(tools: Optional[List[BaseTool]]) -> str:
     return tools_knowledge
 
 
-def background_format(background: str) -> str:
-    background_str = ""
-    if background != "":
-        background_str = f"<Background>\n{background}\n</Background>\n"
-    return background_str
-
-
 class BasePlanner(AgentBasic):
     """
     An abstract base class for all planners.
@@ -33,44 +26,40 @@ class BasePlanner(AgentBasic):
     DEFAULT_PROMPT = """ 
 Given the following task and the tools, generate a high-level plan by breaking it down into meaningful, actionable steps.
 
-**Instructions for generating 'use_tool':**
+**Instructions for generating 'use_tool'**
 If the <Tools></Tools> section is empty, set "use_tool" to false for all steps and omit "tool_name."
 If the <Tools></Tools> section contains tools, set "use_tool" to true when a tool is necessary. Include "tool_name" in those steps and reference any tool-specific properties or arguments in the description.
 
-**Task Breakdown Requirements:**
+**Task Breakdown Requirements**
 1) All steps must be encapsulated under the "steps" key in valid JSON format.
 2) Each step should include:
-    "step_name": The name of the step
-    "step_description": A concise description of the action to be performed in that step
+    "name": The name of the step
+    "description": A concise description of the action to be performed in that step
     "use_tool": A boolean indicating whether a tool should be used
     Optionally, "tool_name": The name of the tool if "use_tool" is true
-    "step_category": Categorize the step based on its function ({categories_str})
+    "category": Categorize the step based on its function ({categories_str})
 3) The possible categories for each step are: {categories_str}.
     If you cannot fit into any existing category, define a new category in "step_category".
-4) Output **ONLY** valid JSON. No extra text, no Markdown.   
-5) Steps should be high-level but clear and not missing any aspect, had better used all tools to analyse, avoiding overly detailed breakdowns for simple tasks.
+4) Steps should be high-level but clear and not missing any aspect, had better used all tools to analyse, avoiding overly detailed breakdowns for simple tasks.
 
+**Background**
 {background}
 
-<Knowledge>
+**Knowledge**
 {knowledge}
-</Knowledge>
 
-<Examples>
+**Tools**
+{tools_knowledge}
+
+**Task**
+{task}
+
+**Examples**
 {example_json1}
 {example_json2}
-</Examples>
 
-<Tools>
-{tools_knowledge}
-</Tools>
-
-<Task>
-{task}
-</Task>
-
-Output ONLY valid JSON. No extra text or markdown.
-Steps:
+**Note:** Ensure your response is valid JSON, without any additional text or comments.
+ Steps:
     """
 
     def __init__(self, model_name: Optional[str] = None,

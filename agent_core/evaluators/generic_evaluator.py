@@ -23,21 +23,21 @@ You are an expert evaluator of AI-generated outputs. Evaluate the provided subta
 8. **Ethical Compliance** (Score 1-5): The content complies with ethical guidelines and policies.
 
 At the end:
-Based on the justificaitons of all criteria, provide a **improvement_suggestion** with any improvement suggestions to reach the full score (empty if full score - all scores are 5).
+Based on the justifications of all criteria, provide a **improvement_suggestion** with any improvement suggestions to reach the full score (empty if full score - all scores are 5).
 
 IMPORTANT: Return your result strictly in **valid JSON** and nothing else, with this structure:
 
-{
+{{
   "points": [
-    {
+    {{
       "criterion": "<string>",
       "score": <integer>,
       "justification": "<string>"
-    },
+    }},
     ...
   ],
   "improvement_suggestion": "<string>"
-}
+}}
 
 Do not include any extra keys or text outside this JSON.
 
@@ -94,7 +94,8 @@ Do not include any extra keys or text outside this JSON.
             evaluation_response
         )
 
-        return EvaluatorResult(decision, score, suggestion, details)
+        return EvaluatorResult(decision=decision, score=score, suggestion=suggestion, details=details,
+                               prompt=self.default_prompt())
 
     def default_prompt(self):
         return self.DEFAULT_PROMPT
