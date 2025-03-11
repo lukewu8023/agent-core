@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import List, Optional, Annotated, Any
-from pydantic import BaseModel, Field
+from dataclasses import field
+from typing import List, Optional
+from pydantic import BaseModel
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 
 
@@ -8,18 +9,18 @@ class Step(BaseModel):
 
     name: str
     description: str
-    prompt: Optional[str] = Field(None)
-    result: Optional[str] = Field(None)
-    use_tool: Optional[bool] = Field(None)
-    tool_name: Optional[str] = Field(None)
-    category: Optional[str] = Field("default")
-    retries: Optional[List[Step]] = Field(None)
-    evaluator_result: Optional[EvaluatorResult] = Field(None)
+    prompt: Optional[str] = ""
+    result: Optional[str] = ""
+    use_tool: Optional[bool] = False
+    tool_name: Optional[str] = ""
+    category: Optional[str] = "default"
+    retries: Optional[List[Step]] = field(default_factory=list)
+    evaluator_result: Optional[EvaluatorResult] = None
 
     def add_retry(self, step: Step):
         if self.retries is None:
             self.retries = list()
-            self.retries.append(step)
+        self.retries.append(step)
 
     def add_evaluator_result(self, evaluator_result: EvaluatorResult):
         self.evaluator_result = evaluator_result
@@ -40,11 +41,7 @@ class Step(BaseModel):
 
 class Steps(BaseModel):
 
-    steps: List[Step]
-
-    def __init__(self, /, **data: Any):
-        super().__init__(**data)
-        self.steps = []
+    steps: List[Step] = field(default_factory=list)
 
     def __str__(self):
         return self.execution_history_to_str()
@@ -88,4 +85,3 @@ class Steps(BaseModel):
             responses_text = responses_text[:-1]
 
         return responses_text
-

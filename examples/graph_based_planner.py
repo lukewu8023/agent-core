@@ -1,4 +1,4 @@
-# examples/graph-based_planner.py
+# examples/graph_based_planner.py
 
 import sys
 import os

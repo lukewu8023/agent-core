@@ -1,6 +1,7 @@
 # planners/graph_planner.py
 
 import json
+import logging
 import re
 
 from agent_core.evaluators import BaseEvaluator
@@ -471,7 +472,8 @@ You are an intelligent assistant helping to adjust a task execution plan represe
                         )
 
                     continue
-        return "Task execution completed using GraphPlanner."
+        logging.info("Task execution completed using GraphPlanner")
+        return execution_history
 
     def _execute_node(
         self, node: Node, model_name: str, task: str, background: str

@@ -18,5 +18,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.11",  # Specify required Python version
+    python_requires=">=3.12",  # Specify required Python version
 )
