@@ -111,7 +111,10 @@ class GenericEvaluator(BaseEvaluator):
         Attempt to parse the JSON. If invalid, treat as "Rerun Subtask" with 0 score.
         """
         try:
-            data = json.loads(evaluation_response)
+            cleaned = (
+                evaluation_response.replace("```json", "").replace("```", "").strip()
+            )
+            data = json.loads(cleaned)
             points = data.get("points", [])
 
             """Extract scores from JSON and calculate the total score."""
