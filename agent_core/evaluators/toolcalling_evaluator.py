@@ -93,8 +93,10 @@ class ToolCallingEvaluator(BaseEvaluator):
 
         # Create an EvaluatorResult object
         return EvaluatorResult(
+            name=self.name(),
             decision=recommendation,
             score=numeric_score,  # normalized if you wish. Here it's either 0.0 or 1.0
             suggestion=rerun_suggestion,
             details=details_json,
+            prompt=self.prompt
         )

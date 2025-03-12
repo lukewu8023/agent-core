@@ -94,7 +94,7 @@ Do not include any extra keys or text outside this JSON.
             evaluation_response
         )
 
-        return EvaluatorResult(decision=decision, score=score, suggestion=suggestion, details=details,
+        return EvaluatorResult(name=self.name, decision=decision, score=score, suggestion=suggestion, details=details,
                                prompt=self.default_prompt())
 
     def default_prompt(self):
@@ -113,7 +113,7 @@ Do not include any extra keys or text outside this JSON.
             total_score = sum(scores)
 
             # Check if any criterion scored below 3
-            any_low_scores = any(score < 3 for _, score in scores)
+            any_low_scores = any(score < 3 for score in scores)
 
             # Convert total_score from 0..40 to 0..1 scale for the node's final check
             numeric_score = float(total_score) / 40.0
@@ -132,4 +132,4 @@ Do not include any extra keys or text outside this JSON.
         except Exception as e:
             # If parse fails, fallback
             details = {"parse_error": str(e), "raw_response": evaluation_response}
-            return ("Rerun Subtask", 0, "Rerun this step.", details)
+            return "Rerun Subtask", 0, "Rerun this step.", details

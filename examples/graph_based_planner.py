@@ -16,6 +16,7 @@ from agent_core.planners import GraphPlanner
 def main():
     agent = Agent()
     agent.planner = GraphPlanner()
+    agent.enable_evaluators()
 
     task = "3 steps draw a digital dragon using computer emoji characters."
     agent.execute(task)
