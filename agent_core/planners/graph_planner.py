@@ -93,9 +93,9 @@ class PlanGraph:
 @dataclass
 class Adjustments(BaseModel):
     action: str
-    new_subtasks: List[Node]
-    restart_node_id: str
-    modifications: List[Node]
+    new_subtasks: List[Node] = [] # Provide an empty list as default
+    restart_node_id: Optional[str] = None  # Allow None if missing
+    modifications: List[Node] = [] # Provide an empty list as default
     rationale: str
 
 
@@ -447,11 +447,11 @@ class GraphPlanner(BasePlanner):
                     )
                     replan_response = self._failure_replan(pg, failure_info)
                     cleaned = (
-                        self._model.process(replan_response)
-                        .replace("```json", "")
+                        replan_response.replace("```json", "")
                         .replace("```", "")
                         .strip()
                     )
+
                     try:
                         adjustments = Adjustments.model_validate_json(cleaned)
                     except Exception as e:
