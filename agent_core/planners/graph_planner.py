@@ -38,12 +38,12 @@ class Node:
     task_tool_name: str = ""
     task_tool: BaseTool = None
 
-    result: str = None
+    # result: str = None
     # execution_results: List[ExecutionResult] = field(default_factory=list)
     evaluation_threshold: float = 0.9
     max_attempts: int = 3
     current_attempts: int = 0
-    failed_reasons: List[str] = field(default_factory=list)
+    # failed_reasons: List[str] = field(default_factory=list)
 
     task_category: str = "default"
 
@@ -436,11 +436,7 @@ class GraphPlanner(BasePlanner):
                         pg.add_history_record(
                             {
                                 "node_id": node.id,
-                                "failure_reason": (
-                                    node.failed_reasons[-1]
-                                    if node.failed_reasons
-                                    else ""
-                                ),
+                                "failure_reason": retry_steps[-1].evaluator_result.details,
                                 "llm_response": adjustments,
                             }
                         )
@@ -481,7 +477,6 @@ class GraphPlanner(BasePlanner):
         )
         # Keep the raw response in node's execution_results for reference
         # node.execution_results.append(step.result)
-        node.result = step.result
         execution_history.add_step(step)
         # Post-success replan check
         # We'll see if we want to add or replace future steps on the fly.
