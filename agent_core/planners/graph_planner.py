@@ -552,7 +552,7 @@ class GraphPlanner(BasePlanner):
             context=self.context_manager.context_to_str(),
             task=task,
             background=background,
-            task_description=f"<Step {node.id}>\nTask Desc: {node.task_description}\n</Step {node.id}>",
+            task_description=f"**Step {node.id}**\nTask Desc: {node.task_description}",
             task_use_tool=node.task_use_tool,
             tool_description=tool_description,
             failure_info=failure_info,
