@@ -144,8 +144,8 @@ class GenericPlanner(BasePlanner):
                 step.add_evaluator_result(evaluator_result)
                 self.logger.info(evaluator_result.to_log())
 
-                while evaluator_result.score / 40 <= evaluator.evaluation_threshold\
-                        and evaluator.max_attempt - 1 > attempt:
+                while evaluator_result.score <= evaluator.evaluation_threshold\
+                        and evaluator.max_attempt + 1 > attempt:
                     self.logger.info(f"Executing Step {idx} Failed Attempt {attempt}: {step.description}")
                     retry_step = Step(name=step.name, description=step.description)
                     retry_prompt = f"""
@@ -167,34 +167,7 @@ class GenericPlanner(BasePlanner):
                     attempt = attempt + 1
 
             if context_manager:
-                context_manager.add_context("Execution History", step.to_success_context(idx))
+                context_manager.add_context("Execution History", step.to_success_info())
             else:
-                context_manager.get_context_by_key("Execution History") + step.to_success_context(idx)
+                context_manager.get_context_by_key("Execution History") + step.to_success_info()
         return plan
-
-    # def analyse_result(self, steps_data, categories):
-    #     valid_categories = set(categories) if categories else set()
-    #     # Convert steps_data to Step objects
-    #     plan = Steps()
-    #     for sd in steps_data:
-    #         name = sd.get("step_name")
-    #         desc = sd.get("step_description")
-    #         use_tool = sd.get("use_tool")
-    #         tool_name = sd.get("tool_name")
-    #         raw_cat = sd.get("step_category", "default")
-    #
-    #         # If LLM returned a category not in recognized set, fallback to 'default'
-    #         final_cat = raw_cat if raw_cat in valid_categories else "default"
-    #
-    #         if name and desc:
-    #             step = Step(
-    #                 name=name,
-    #                 description=desc,
-    #                 use_tool=use_tool,
-    #                 tool_name=tool_name,
-    #                 category=final_cat,
-    #             )
-    #             plan.add_step(step)
-    #         else:
-    #             self.logger.warning(f"Incomplete step data: {sd}")
-    #     return plan

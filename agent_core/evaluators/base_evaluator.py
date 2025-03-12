@@ -24,6 +24,7 @@ class BaseEvaluator(AgentBasic):
         self.evaluation_threshold = evaluation_threshold
         self.prompt = self.default_prompt()
         self.max_attempt = max_attempt
+        self.name = self.__class__.__name__
 
     @abstractmethod
     def default_prompt(self):

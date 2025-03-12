@@ -25,8 +25,16 @@ class Step(BaseModel):
     def add_evaluator_result(self, evaluator_result: EvaluatorResult):
         self.evaluator_result = evaluator_result
 
-    def to_success_context(self, idx):
-        return f"""Step {idx}: {self.name} Description: {self.description} Result: {self.result}\n"""
+    def to_success_info(self) -> str:
+        return f"""Step : {self.name} Description: {self.description} Result: {self.result}\n"""
+
+    def get_info(self) -> dict:
+        info = self.to_dict()
+        info["nodeId"] = self.name
+        info["result"] = self.result
+        info["evaluator_result"] = self.evaluator_result.to_info()
+        info["retries"] = [step.evaluator_result.to_info() for step in self.retries]
+        return info
 
     def to_dict(self):
         # Convert the object to a dictionary that can be serialized to JSON
@@ -48,6 +56,9 @@ class Steps(BaseModel):
 
     def add_step(self, step: Step):
         self.steps.append(step)
+
+    def get_info(self):
+        return [step.get_info() for step in self.steps]
 
     def to_dict(self):
         # Convert the Steps instance to a dictionary
