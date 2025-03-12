@@ -15,34 +15,34 @@ class GenericPlanner(BasePlanner):
     """
 
     EXAMPLE_JSON1 = """
-{
-    "steps": [
-        {
-            "name": "Prepare eggs",
-            "description": "Get the eggs from the fridge and put them on the table.",
-            "use_tool": true,
-            "tool_name": "Event",
-            "category": "action",
-            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
-        },
-        ...
-    ]
-}
+    {
+        "steps": [
+            {
+                "name": "Prepare eggs",
+                "description": "Get the eggs from the fridge and put them on the table.",
+                "use_tool": true,
+                "tool_name": "Event",
+                "category": "action",
+                "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
+            },
+            ...
+        ]
+    }
     """
 
     EXAMPLE_JSON2 = """
-{
-    "steps": [
-        {
-            "name": "Plan code structure",
-            "description": "Outline the classes and methods.",
-            "use_tool": false,
-            "category": "coding",
-            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
-        },
-        ...
-    ]
-}
+    {
+        "steps": [
+            {
+                "name": "Plan code structure",
+                "description": "Outline the classes and methods.",
+                "use_tool": false,
+                "category": "coding",
+                "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
+            },
+            ...
+        ]
+    }
     """
 
     def __init__(self, model_name: str = None, log_level: Optional[str] = None):
@@ -117,7 +117,9 @@ class GenericPlanner(BasePlanner):
         self.logger.info(f"Executing plan with {len(plan.steps)} steps.")
 
         for idx, step in enumerate(plan.steps, 1):
-            context_section = context_manager.context_to_str() if context_manager else ""
+            context_section = (
+                context_manager.context_to_str() if context_manager else ""
+            )
             final_prompt = f"""
                 {context_section}\n
                 **Background**
@@ -144,9 +146,13 @@ class GenericPlanner(BasePlanner):
                 step.add_evaluator_result(evaluator_result)
                 self.logger.info(evaluator_result.to_log())
 
-                while evaluator_result.score <= evaluator.evaluation_threshold\
-                        and evaluator.max_attempt + 1 > attempt:
-                    self.logger.info(f"Executing Step {idx} Failed Attempt {attempt}: {step.description}")
+                while (
+                    evaluator_result.score <= evaluator.evaluation_threshold
+                    and evaluator.max_attempt + 1 > attempt
+                ):
+                    self.logger.info(
+                        f"Executing Step {idx} Failed Attempt {attempt}: {step.description}"
+                    )
                     retry_step = Step(name=step.name, description=step.description)
                     retry_prompt = f"""
                         {final_prompt}\n
@@ -163,11 +169,16 @@ class GenericPlanner(BasePlanner):
                     )
                     retry_step.add_evaluator_result(evaluator_result)
                     step.add_retry(retry_step)
-                    self.logger.info(f"Response for Rerun Step {idx} Failed Attempt {attempt}: {response}")
+                    self.logger.info(
+                        f"Response for Rerun Step {idx} Failed Attempt {attempt}: {response}"
+                    )
                     attempt = attempt + 1
 
             if context_manager:
                 context_manager.add_context("Execution History", step.to_success_info())
             else:
-                context_manager.get_context_by_key("Execution History") + step.to_success_info()
+                (
+                    context_manager.get_context_by_key("Execution History")
+                    + step.to_success_info()
+                )
         return plan

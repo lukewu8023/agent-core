@@ -21,43 +21,45 @@ class Agent(AgentBasic):
     """
 
     DEFAULT_EXECUTE_PROMPT = """
-{context_section}
-<Background>
-{background}
-</Background>
-<Task> 
-{task}
-</Task>
-"""
+    {context_section}
+    
+    **Background**
+    {background}
+
+    **Task**
+    {task}
+    """
 
     DEFAULT_SUMMARY_PROMPT = """
-You are an assistant summarizing the outcome of a multi-step plan execution.
-Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
-
-Execution History:
-{history_text}
-
-Output format:
-## Summary
-## Output Result
-## Conclusion
-"""
+    You are an assistant summarizing the outcome of a multi-step plan execution.
+    Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
+    
+    **Execution History**
+    {history_text}
+    
+    Output format:
+    ## Summary
+    ## Output Result
+    ## Conclusion
+    """
 
     DEFAULT_FINAL_RESPONSE_PROMPT = """
-You are an assistant to response user's query.
-Given user'query and step-by-step result of execution history. 
-Generate the final response to user. The final answer usually in the last step.
+    You are an assistant to response user's query.
+    Given user'query and step-by-step result of execution history. 
+    Generate the final response to user. The final answer usually in the last step.
+    
+    **User Query**
+    {task}
+    
+    **Execution History**
+    {history_text}
+    
+    Response:
+    """
 
-User Query:
-{task}
-
-Execution History:
-{history_text}
-
-Response:
-"""
-
-    def __init__(self, model_name: Optional[str] = None, log_level: Optional[str] = None):
+    def __init__(
+        self, model_name: Optional[str] = None, log_level: Optional[str] = None
+    ):
         """
         If 'model' is not provided, the default model from config will be used.
         'log_level' can override the framework-wide default for this Agent specifically.
@@ -83,7 +85,7 @@ Response:
         # Prompt strings for direct (no-planner) usage and summary
         self.execute_prompt = self.DEFAULT_EXECUTE_PROMPT
         self.summary_prompt = self.DEFAULT_SUMMARY_PROMPT
-        self.response_prompt=self.DEFAULT_FINAL_RESPONSE_PROMPT
+        self.response_prompt = self.DEFAULT_FINAL_RESPONSE_PROMPT
 
         # NEW: evaluator management
         self.evaluators_enabled = False
@@ -135,17 +137,15 @@ Response:
         response = self._model.process(final_prompt)
         self.logger.info(f"Response: {response}")
         self._execution_history.add_step(
-            Step(
-                name="Direct Task Execution",
-                description=task,
-                result=str(response)
-            )
+            Step(name="Direct Task Execution", description=task, result=str(response))
         )
         return response
 
     def get_final_response(self, task: str) -> str:
         history_text = self._execution_history.execution_history_to_str()
-        final_response_prompt = self.response_prompt.format(task=task, history_text=history_text)
+        final_response_prompt = self.response_prompt.format(
+            task=task, history_text=history_text
+        )
         self.logger.info("Generating final response.")
         final_response = self._model.process(final_response_prompt)
         return str(final_response)

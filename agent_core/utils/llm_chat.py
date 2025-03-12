@@ -28,22 +28,23 @@ def _parse_rating(response_text: str) -> int:
 
 
 class LLMChat(AgentBasic):
+
     DEFAULT_EVALUATE_TEXT_PROMPT = """\
-You are a critical evaluator. Below is some text to evaluate:
-Text:
-{input_text}
-Criteria:
-{criteria}
-Instructions:
-1) Provide a short explanation of how well the text meets the criteria.
-2) Then on a new line, output "Rating: X" where X is an integer in [1..10].
-3) Optionally provide suggestions.
-Example:
-Summary: This text partially meets the criteria but could be more clear.
-Rating: 7
-Suggestions: Make it clearer how the data is processed.
-Now, produce your evaluation:
-"""
+    You are a critical evaluator. Below is some text to evaluate:
+    Text:
+    {input_text}
+    Criteria:
+    {criteria}
+    Instructions:
+    1) Provide a short explanation of how well the text meets the criteria.
+    2) Then on a new line, output "Rating: X" where X is an integer in [1..10].
+    3) Optionally provide suggestions.
+    Example:
+    Summary: This text partially meets the criteria but could be more clear.
+    Rating: 7
+    Suggestions: Make it clearer how the data is processed.
+    Now, produce your evaluation:
+    """
 
     def __init__(self, model_name: str = None, log_level: str = None):
         """

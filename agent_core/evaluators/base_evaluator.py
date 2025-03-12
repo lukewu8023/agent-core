@@ -13,8 +13,13 @@ class BaseEvaluator(AgentBasic):
     A base class for all evaluator. Every evaluator must implement `evaluator()`.
     """
 
-    def __init__(self, model_name: Optional[str] = None, log_level: Optional[str] = None,
-                 evaluation_threshold: Optional[float] = 0.8, max_attempt: Optional[int] = 3):
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        log_level: Optional[str] = None,
+        evaluation_threshold: Optional[float] = 0.8,
+        max_attempt: Optional[int] = 3,
+    ):
         """
         Pass in the agent's model instance so we can call model.process(...) for evaluation prompts.
         Optionally specify log_level for debug or other logs.
@@ -31,9 +36,15 @@ class BaseEvaluator(AgentBasic):
         pass
 
     @abstractmethod
-    def evaluate(self, root_task: str, request: str, response: str, background: str, context_manager: ContextManager) -> EvaluatorResult:
+    def evaluate(
+        self,
+        root_task: str,
+        request: str,
+        response: str,
+        background: str,
+        context_manager: ContextManager,
+    ) -> EvaluatorResult:
         """
         Perform evaluator on the given request and response.
         """
         pass
-

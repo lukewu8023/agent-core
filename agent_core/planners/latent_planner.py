@@ -63,28 +63,28 @@ class LatentPlanner:
 
     # A default prompt to show how we might incorporate the final LLM call
     DEFAULT_EXECUTE_PROMPT = """
-[Latent Reasoning Planner]
-
-We have a root task: {root_task}
-
-Current step: {step_name}
-Step description: {step_desc}
-
-Required info: {step_info_required}
-Context so far:
-{context}
-
-Latent vector state (not directly shown to user):
-{latent_vector_snapshot}
-
-Generate a final JSON describing the result or tool call.
-For example:
-```json
-{{
-  "use_tool": false,
-  "response": "some final text result"
-}}
-"""
+    [Latent Reasoning Planner]
+    
+    We have a root task: {root_task}
+    
+    Current step: {step_name}
+    Step description: {step_desc}
+    
+    Required info: {step_info_required}
+    Context so far:
+    {context}
+    
+    Latent vector state (not directly shown to user):
+    {latent_vector_snapshot}
+    
+    Generate a final JSON describing the result or tool call.
+    For example:
+    ```json
+    {{
+      "use_tool": false,
+      "response": "some final text result"
+    }}
+    """
 
     def __init__(
         self,
@@ -111,7 +111,6 @@ For example:
 
         self.context_manager = ContextManager()  # store overall context
         self.execute_prompt = self.DEFAULT_EXECUTE_PROMPT
-
 
     def plan(
         self,
@@ -143,7 +142,6 @@ For example:
             self.steps.append(step)
 
         return self.steps
-
 
     def execute_plan(
         self,
@@ -199,7 +197,9 @@ For example:
                 pass_eval = True
                 if evaluators_enabled:
                     eval_score = self._evaluate_step(step, final_text, evaluators)
-                    self.logger.info(f"Eval score for step {step.name}: {eval_score:.3f}")
+                    self.logger.info(
+                        f"Eval score for step {step.name}: {eval_score:.3f}"
+                    )
                     pass_eval = eval_score >= step.evaluation_threshold
 
                 if pass_eval:
@@ -213,19 +213,19 @@ For example:
                         f"Step {step.name} not passing threshold, attempt {step.current_attempts} ended."
                     )
                     if step.current_attempts >= step.max_attempts:
-                        self.logger.error(f"Step {step.name} failed after max attempts.")
+                        self.logger.error(
+                            f"Step {step.name} failed after max attempts."
+                        )
                 # end while
 
         self.logger.info("All steps executed or exhausted attempts.")
         return self.completed_steps
-
 
     def _init_latent_vector(self) -> np.ndarray:
         """
         Randomly initialize latent vector (like the random init in the paper).
         """
         return np.random.randn(self.latent_dim).astype(np.float32)
-
 
     def _recurrent_iteration(self, step: LatentTaskStep, root_task: str) -> bool:
         """
@@ -243,7 +243,9 @@ For example:
             if missing_keys:
                 # ask user
                 if not self.allow_human_in_the_loop:
-                    self.logger.warning("Missing info but human_in_the_loop is disabled.")
+                    self.logger.warning(
+                        "Missing info but human_in_the_loop is disabled."
+                    )
                     return False
                 # Try to gather from user
                 user_provided = self._human_in_the_loop(missing_keys, step)
@@ -252,16 +254,15 @@ For example:
                     return False
 
             # 2) "Update" the latent_vector. For demonstration, do a random small perturbation + tanh
-            gradient = np.random.normal(loc=0, scale=0.01, size=(self.latent_dim,)).astype(
-                np.float32
-            )
+            gradient = np.random.normal(
+                loc=0, scale=0.01, size=(self.latent_dim,)
+            ).astype(np.float32)
             step.latent_vector = np.tanh(step.latent_vector + gradient)
 
             # 3) optional: we could do early stopping if gradient < threshold, etc.
             # e.g., if np.linalg.norm(gradient)<1e-4: break
 
         return True
-
 
     def _check_missing_info(self, step: LatentTaskStep) -> List[str]:
         """
@@ -276,8 +277,9 @@ For example:
                 missing.append(key)
         return missing
 
-
-    def _human_in_the_loop(self, missing_keys: List[str], step: list[LatentTaskStep]) -> bool:
+    def _human_in_the_loop(
+        self, missing_keys: List[str], step: list[LatentTaskStep]
+    ) -> bool:
         """
         Request info from the user for each missing key.
         Return True if user provided all info, False if user declined or partial.
@@ -292,7 +294,6 @@ For example:
             # store in context
             self.context_manager.add_context(key, user_val)
         return True
-
 
     def _finalize_step_output(
         self, step: LatentTaskStep, root_task: str, background: str
@@ -323,7 +324,6 @@ For example:
 
         return llm_response
 
-
     def _parse_and_maybe_invoke_tool(
         self, llm_output: str, step: LatentTaskStep, tools: Dict[str, BaseTool]
     ) -> Tuple[str, bool]:
@@ -337,7 +337,12 @@ For example:
         cleaned = llm_output.replace("```json", "").replace("```", "").strip()
         try:
             data = json.loads(cleaned)
-            if data.get("use_tool", False) and step.use_tool and step.tool_name and tools:
+            if (
+                data.get("use_tool", False)
+                and step.use_tool
+                and step.tool_name
+                and tools
+            ):
                 # call tool
                 tool_instance = tools.get(step.tool_name)
                 if tool_instance:
@@ -353,9 +358,11 @@ For example:
             final_text = "[JSON parse error or invalid format]"
         return final_text, used_tool
 
-
     def _evaluate_step(
-        self, step: LatentTaskStep, result_text: str, evaluators: Dict[str, BaseEvaluator]
+        self,
+        step: LatentTaskStep,
+        result_text: str,
+        evaluators: Dict[str, BaseEvaluator],
     ) -> float:
         """
         If we have an evaluator for the step name or 'default', use it to get a 0..1 score.

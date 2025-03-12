@@ -30,6 +30,7 @@ class Node:
     """
     Represents a single node in the PlanGraph.
     """
+
     id: str
     task_description: str
     next_node: str = ""
@@ -99,7 +100,14 @@ class Adjustments(BaseModel):
 
 
 def cleanup_context(execution_history: Steps, restart_node_id):
-    cut_index = ((index for index, step in enumerate(execution_history.steps) if step.name == restart_node_id), len(execution_history.steps))
+    cut_index = (
+        (
+            index
+            for index, step in enumerate(execution_history.steps)
+            if step.name == restart_node_id
+        ),
+        len(execution_history.steps),
+    )
     return execution_history[:cut_index]
 
 
@@ -362,7 +370,7 @@ class GraphPlanner(BasePlanner):
                 task_tool_name=step.tool_name,
                 task_tool=tool_map.get(step.tool_name) if step.tool_name else None,
                 next_node=next_node_id,
-                task_category=step.category
+                task_category=step.category,
             )
             plan_graph.add_node(node)
 
@@ -389,7 +397,9 @@ class GraphPlanner(BasePlanner):
         """
         execution_history = Steps()
         if not self.plan_graph:
-            self.logger.error("No plan graph found. Need to generate plan graph by plan() first.")
+            self.logger.error(
+                "No plan graph found. Need to generate plan graph by plan() first."
+            )
             return execution_history
         if context_manager:
             self.context_manager = context_manager
@@ -402,7 +412,9 @@ class GraphPlanner(BasePlanner):
                 )
                 break
             node = pg.nodes[pg.current_node_id]
-            step = self.execute(node, evaluators_enabled, task, background, evaluators, None)
+            step = self.execute(
+                node, evaluators_enabled, task, background, evaluators, None
+            )
             if step.evaluator_result.score >= node.evaluation_threshold:
                 self.success_result(node, execution_history, step)
                 continue
@@ -410,7 +422,14 @@ class GraphPlanner(BasePlanner):
                 retry = True
                 retry_steps: List[Step] = [step]
                 while retry and node.max_attempts >= node.current_attempts:
-                    attempt_step = self.execute(node, evaluators_enabled, task, background, evaluators, retry_steps[-1])
+                    attempt_step = self.execute(
+                        node,
+                        evaluators_enabled,
+                        task,
+                        background,
+                        evaluators,
+                        retry_steps[-1],
+                    )
                     evaluator_result = attempt_step.evaluator_result
                     if evaluator_result.score <= node.evaluation_threshold:
                         retry_steps.append(attempt_step)
@@ -423,9 +442,16 @@ class GraphPlanner(BasePlanner):
                     continue
                 else:
                     self.logger.warning(f"Replanning needed at Node {node.id}")
-                    failure_info = self._prepare_failure_info(execution_history, retry_steps[-1])
+                    failure_info = self._prepare_failure_info(
+                        execution_history, retry_steps[-1]
+                    )
                     replan_response = self._failure_replan(pg, failure_info)
-                    cleaned = self._model.process(replan_response).replace("```json", "").replace("```", "").strip()
+                    cleaned = (
+                        self._model.process(replan_response)
+                        .replace("```json", "")
+                        .replace("```", "")
+                        .strip()
+                    )
                     try:
                         adjustments = Adjustments.model_validate_json(cleaned)
                     except Exception as e:
@@ -436,12 +462,16 @@ class GraphPlanner(BasePlanner):
                         pg.add_history_record(
                             {
                                 "node_id": node.id,
-                                "failure_reason": retry_steps[-1].evaluator_result.details,
+                                "failure_reason": retry_steps[
+                                    -1
+                                ].evaluator_result.details,
                                 "llm_response": adjustments,
                             }
                         )
                         self.apply_adjustments_to_plan(node.id, adjustments)
-                        self.logger.info(f"New plan after adjusted: {self.plan_graph.nodes}")
+                        self.logger.info(
+                            f"New plan after adjusted: {self.plan_graph.nodes}"
+                        )
                         restart_node_id = self._determine_restart_node(adjustments)
                         if restart_node_id:
                             cleanup_context(execution_history, restart_node_id)
@@ -449,32 +479,34 @@ class GraphPlanner(BasePlanner):
                         else:
                             break
                     else:
-                        self.logger.error("Could not parse LLM response for replan, aborting.")
+                        self.logger.error(
+                            "Could not parse LLM response for replan, aborting."
+                        )
                         break
         logging.info("Task execution completed using GraphPlanner")
         return execution_history
 
-    def execute(self, node, evaluators_enabled, task, background, evaluators, failure_step) -> Step:
-        step = Step(name=node.id, description=node.task_description,
-                    use_tool=node.task_use_tool, tool_name=node.task_tool_name,
-                    category=node.task_category)
-        response = self._execute_node(node, self.model_name, task, background, step, failure_step)
+    def execute(
+        self, node, evaluators_enabled, task, background, evaluators, failure_step
+    ) -> Step:
+        step = Step(
+            name=node.id,
+            description=node.task_description,
+            use_tool=node.task_use_tool,
+            tool_name=node.task_tool_name,
+            category=node.task_category,
+        )
+        response = self._execute_node(
+            node, self.model_name, task, background, step, failure_step
+        )
         step.evaluator_result = self._evaluate_node(
-            node,
-            task,
-            response,
-            evaluators_enabled,
-            evaluators,
-            background
+            node, task, response, evaluators_enabled, evaluators, background
         )
         return step
 
     def success_result(self, node, execution_history: Steps, step: Step):
         # Add node info to context
-        self.context_manager.add_context(
-            step.name,
-            step.to_success_info()
-        )
+        self.context_manager.add_context(step.name, step.to_success_info())
         # Keep the raw response in node's execution_results for reference
         # node.execution_results.append(step.result)
         execution_history.add_step(step)
@@ -484,8 +516,13 @@ class GraphPlanner(BasePlanner):
         self.plan_graph.current_node_id = node.next_node
 
     def _execute_node(
-        self, node: Node, model_name: str, task: str, background: str, step: Step,
-            failure_step: Step
+        self,
+        node: Node,
+        model_name: str,
+        task: str,
+        background: str,
+        step: Step,
+        failure_step: Step,
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
@@ -518,7 +555,7 @@ class GraphPlanner(BasePlanner):
             task_description=f"<Step {node.id}>\nTask Desc: {node.task_description}\n</Step {node.id}>",
             task_use_tool=node.task_use_tool,
             tool_description=tool_description,
-            failure_info=failure_info
+            failure_info=failure_info,
         )
         step.prompt = final_prompt
         response = ModelRegistry.get_model(model_name).process(final_prompt)
@@ -581,18 +618,20 @@ class GraphPlanner(BasePlanner):
         evaluator_result = evaluator.evaluate(
             root_task, node.task_description, result, background, self.context_manager
         )
-        self.logger.info(
-            f"Node {node.id} execution score: {evaluator_result.to_log()}"
-        )
+        self.logger.info(f"Node {node.id} execution score: {evaluator_result.to_log()}")
         return evaluator_result
 
-    def _prepare_failure_info(self, execute_history: Steps, current_failed: Step) -> Dict:
+    def _prepare_failure_info(
+        self, execute_history: Steps, current_failed: Step
+    ) -> Dict:
         """
         Produce the context for replan prompt.
         """
         pg = self.plan_graph
         return {
-            "failure_reason": current_failed.evaluator_result.details if current_failed else "",
+            "failure_reason": (
+                current_failed.evaluator_result.details if current_failed else ""
+            ),
             "execution_history": execute_history.get_info(),
             "replan_history": pg.replan_history,
         }
@@ -668,7 +707,9 @@ class GraphPlanner(BasePlanner):
                 else:
                     # If no new steps were added, then the plan ends here
                     node.next_node = ""
-                self.logger.info("Successfully applied 'replan' modifications after success.")
+                self.logger.info(
+                    "Successfully applied 'replan' modifications after success."
+                )
             else:
                 self.logger.warning(
                     f"Unknown action '{adjustments.action}' in success replan. No changes made."
@@ -752,21 +793,33 @@ class GraphPlanner(BasePlanner):
                     node.next_node = new_subtasks[0].id
         elif adjustments.action == "replan":
             restart_node_id = adjustments.restart_node_id
-            modifications = adjustments.modifications if adjustments.modifications else []
+            modifications = (
+                adjustments.modifications if adjustments.modifications else []
+            )
             for mod in modifications:
                 if not mod.id:
-                    self.logger.warning(
-                        f"No 'id' in modification: {mod}. Skipping."
-                    )
+                    self.logger.warning(f"No 'id' in modification: {mod}. Skipping.")
                     continue
                 if mod.id in self.plan_graph.nodes:
                     node = self.plan_graph.nodes.pop(mod.id)
                     node.current_attempts = 0
-                    node.task_description = mod.task_description if mod.task_description else node.task_description
+                    node.task_description = (
+                        mod.task_description
+                        if mod.task_description
+                        else node.task_description
+                    )
                     node.next_node = mod.next_node if mod.next_node else node.next_node
-                    node.evaluation_threshold = mod.evaluation_threshold if mod.evaluation_threshold else node.evaluation_threshold
-                    node.max_attempts = mod.max_attempts if mod.max_attempts else node.max_attempts
-                    node.task_category = mod.task_category if mod.task_category else node.task_category
+                    node.evaluation_threshold = (
+                        mod.evaluation_threshold
+                        if mod.evaluation_threshold
+                        else node.evaluation_threshold
+                    )
+                    node.max_attempts = (
+                        mod.max_attempts if mod.max_attempts else node.max_attempts
+                    )
+                    node.task_category = (
+                        mod.task_category if mod.task_category else node.task_category
+                    )
                     self.plan_graph.add_node(node)
                 else:
                     # If the node does not exist, create a new Node
@@ -774,7 +827,7 @@ class GraphPlanner(BasePlanner):
             if restart_node_id and restart_node_id not in self.plan_graph.nodes:
                 new_node = Node(
                     id=restart_node_id,
-                    task_description="Automatically added restart node"
+                    task_description="Automatically added restart node",
                 )
                 self.plan_graph.add_node(new_node)
 

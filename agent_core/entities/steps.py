@@ -62,9 +62,7 @@ class Steps(BaseModel):
 
     def to_dict(self):
         # Convert the Steps instance to a dictionary
-        return {
-            "steps": [step.to_dict() for step in self.steps]
-        }
+        return {"steps": [step.to_dict() for step in self.steps]}
 
     def get_last_step_output(self):
         if self.steps is not None and len(self.steps) > 0:
