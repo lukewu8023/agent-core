@@ -27,8 +27,8 @@ class BasePlanner(AgentBasic):
     Given the following task and the tools, generate a high-level plan by breaking it down into meaningful, actionable steps.
     
     **Instructions for generating 'use_tool'**
-    If the <Tools></Tools> section is empty, set "use_tool" to false for all steps and omit "tool_name."
-    If the <Tools></Tools> section contains tools, set "use_tool" to true when a tool is necessary. Include "tool_name" in those steps and reference any tool-specific properties or arguments in the description.
+    If the **Tools** section is empty, set "use_tool" to false for all steps and omit "tool_name."
+    If the **Tools** section contains tools, set "use_tool" to true when a tool is necessary. Include "tool_name" in those steps and reference any tool-specific properties or arguments in the description.
     
     **Task Breakdown Requirements**
     1) All steps must be encapsulated under the "steps" key in valid JSON format.

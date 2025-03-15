@@ -43,6 +43,7 @@ class GenericEvaluator(BaseEvaluator):
     
     - If output is an incorrect and unexpected structure in response, provide the structure evaluation output still (Score 0 for each criterion)
     - If output is 'incorrect tool arguments and unexpected result' when invoke the tool, provide the change suggestion and the structure evaluation output still (Score 0 for each criterion)
+    - If output is 'Invalid JSON format in response', provide the structure evaluation output still (Score 0 for each criterion)
     
     ---
     

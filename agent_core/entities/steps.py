@@ -12,7 +12,7 @@ class Step(BaseModel):
     prompt: Optional[str] = ""
     result: Optional[str] = ""
     use_tool: Optional[bool] = False
-    tool_name: Optional[str] = ""
+    tool_name: Optional[str] = None
     category: Optional[str] = "default"
     retries: Optional[List[Step]] = field(default_factory=list)
     evaluator_result: Optional[EvaluatorResult] = None
@@ -30,7 +30,6 @@ class Step(BaseModel):
 
     def get_info(self) -> dict:
         info = self.to_dict()
-        info["nodeId"] = self.name
         info["result"] = self.result
         info["evaluator_result"] = self.evaluator_result.to_info()
         info["retries"] = [step.evaluator_result.to_info() for step in self.retries]
