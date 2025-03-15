@@ -3,6 +3,8 @@
 import pkgutil
 import importlib
 import os
+from typing import Dict
+
 from .base_model import BaseModel
 from agent_core.utils.logger import get_logger
 
@@ -30,7 +32,7 @@ def load_models_dynamically(logger):
 
 
 class ModelRegistry:
-    _models = {}
+    _models: Dict[str, BaseModel] = {}
     logger = get_logger("model-registry")
 
     @classmethod
@@ -46,6 +48,13 @@ class ModelRegistry:
             cls.logger.error(f"Model '{name}' not found in registry.")
             raise ValueError(f"Model '{name}' is not supported.")
         return cls._models.get(name)
+
+    @classmethod
+    def get_token(cls) -> int:
+        token = 0
+        for name, model in cls._models.items():
+            token = token + model.token
+        return token
 
     @classmethod
     def load_models(cls, log_level: str = None):

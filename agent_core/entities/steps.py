@@ -49,6 +49,7 @@ class Step(BaseModel):
 class Steps(BaseModel):
 
     steps: List[Step] = field(default_factory=list)
+    token: int = 0
 
     def __str__(self):
         return self.execution_history_to_str()

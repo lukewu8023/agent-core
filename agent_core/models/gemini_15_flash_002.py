@@ -21,6 +21,7 @@ class Gemini15Flash002Model(BaseModel):
         response = self.model_instance.invoke(messages)
         # Extract the 'content' attribute to return a string
         if hasattr(response, "content"):
+            self.add_token(response)
             return response.content
         else:
             # Fallback in case 'content' is missing
