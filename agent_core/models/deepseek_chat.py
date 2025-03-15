@@ -1,4 +1,4 @@
-# models/deepseek_chat.py
+()# models/deepseek_chat.py
 
 from .base_model import BaseModel
 from langchain_openai import ChatOpenAI
@@ -19,6 +19,7 @@ class DeepSeekChatModel(BaseModel):
         response = self.model_instance.invoke(messages)
         # Extract the 'content' attribute to return a string
         if hasattr(response, "content"):
+            self.add_token(response)
             return response.content
         else:
             # Fallback in case 'content' is missing

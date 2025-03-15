@@ -69,7 +69,6 @@ class Agent(AgentBasic):
 
         # This list holds execution data for each step in sequence.
         super().__init__(self.__class__.__name__, model_name, log_level)
-
         self._execution_history: Steps = Steps()
 
         self.planner = None
@@ -124,7 +123,7 @@ class Agent(AgentBasic):
             evaluators_enabled=self.evaluators_enabled,
             evaluators=self.evaluators,
         )
-
+        self._execution_history.token = self.get_token()
         return self._execution_history.get_last_step_output()
 
     def execute_without_planner(self, task: str):
@@ -137,9 +136,13 @@ class Agent(AgentBasic):
         response = self._model.process(final_prompt)
         self.logger.info(f"Response: {response}")
         self._execution_history.add_step(
-            Step(name="Direct Task Execution", description=task, result=str(response))
+            Step(name="Direct Task Execution", description=task,
+                 result=str(response), prompt=final_prompt)
         )
         return response
+
+    def get_token(self):
+        return ModelRegistry.get_token()
 
     def get_final_response(self, task: str) -> str:
         history_text = self._execution_history.execution_history_to_str()
