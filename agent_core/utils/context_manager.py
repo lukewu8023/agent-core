@@ -56,7 +56,7 @@ class ContextManager:
         return f"ContextManager({self.context})"
 
     # TODO: need test
-    def cleanup_context(self, current_node_id, restart_node_id):
+    def cleanup_context(self, current_node_name, restart_node_name):
         input_text = self.context_to_str
 
         # Extract the content inside <Context>
@@ -72,9 +72,9 @@ class ContextManager:
             re.DOTALL,
         )
 
-        # Determine the range of node IDs to remove
-        restart_char = restart_node_id.upper()
-        current_char = current_node_id.upper()
+        # Determine the range of node Names to remove
+        restart_char = restart_node_name.upper()
+        current_char = current_node_name.upper()
         start_range = min(restart_char, current_char)
         end_range = max(restart_char, current_char)
 

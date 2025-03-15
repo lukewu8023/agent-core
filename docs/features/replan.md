@@ -35,11 +35,11 @@ You are an intelligent assistant helping to adjust a task execution plan represe
 
 **Instructions:**
 - Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
-    1. **breakdown**: Break down the task of failed node {current_node_id} into smaller subtasks.
+    1. **breakdown**: Break down the task of failed node {current_node_name} into smaller subtasks.
     2. **replan**: Go back to a previous node for replanning, 
 - If you choose **breakdown**, provide detailed descriptions of the new subtasks, only breakdown the current (failed) node, otherwise it should be replan. ex: if current node is B, breakdown nodes should be B.1, B.2, if current node is B.2, breakdown nodes should be B.2.1, B.2.2... and make the all nodes as chain eventually.
 - If you choose **replan**, specify which node to return to and suggest any modifications to the plan after that node, do not repeat previous failure replanning in the Replanning History.
-- The id generated following the naming convention as A.1, B.1.2, C.2.5.2, new id (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
+- The name generated following the naming convention as A.1, B.1.2, C.2.5.2, new name (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
 - Return your response in the following JSON format (do not include any additional text):
 
 ```json
@@ -47,19 +47,19 @@ You are an intelligent assistant helping to adjust a task execution plan represe
     "action": "breakdown" or "replan",
     "new_subtasks": [  // Required if action is "breakdown"
         {{
-            "id": "unique_task_id",
-            "task_description": "Description of the subtask",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
+            "name": "unique_task_name",
+            "description": "Description of the subtask",
+            "next_nodes": ["next_node_name_1", "next_node_name_2"],
             "evaluation_threshold": 0.9,
             "max_attempts": 3
         }}
     ],
-    "restart_node_id": "node_id",  // Required if action is "replan"
+    "restart_node_name": "node_name",  // Required if action is "replan"
     "modifications": [  // Optional, used if action is "replan"
         {{
-            "node_id": "node_to_modify_id",
-            "task_description": "Modified description",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
+            "name": "node_to_modify_name",
+            "description": "Modified description",
+            "next_nodes": ["next_node_name_1", "next_node_name_2"],
             "evaluation_threshold": 0.9,
             "max_attempts": 3
         }}
@@ -100,14 +100,14 @@ Node B.3: Add detailed emoji characters for horns and other features (e.g., wing
 
 
 **Execution History:**
-[{'node_id': 'A', 'results': [0.875, 0.7, 0.95, None]}, {'node_id': 'C', 'results': [0.825, 0.85, 0.875]}, {'node_id': 'B.1', 'results': [0.875, 0.9, None]}, {'node_id': 'B.2', 'results': [0.95, None]}, {'node_id': 'B.3', 'results': [0.9, None]}]
+[{'name': 'A', 'results': [0.875, 0.7, 0.95, None]}, {'name': 'C', 'results': [0.825, 0.85, 0.875]}, {'name': 'B.1', 'results': [0.875, 0.9, None]}, {'name': 'B.2', 'results': [0.95, None]}, {'name': 'B.3', 'results': [0.9, None]}]
 (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. 0.9 is the threshold. Less than 0.9 is failed.)
 
 **Failure Reason:**
 Node C failed to reach threshold after 3 attempts.
 
 **Replanning History:**
-[{'timestamp': datetime.datetime(2025, 2, 18, 20, 22, 21, 867377), 'node_id': 'B', 'failure_reason': 'Node B failed to reach threshold after 3 attempts.', 'llm_response': {'action': 'breakdown', 'new_subtasks': [{'id': 'B.1', 'task_description': "Add detailed emoji characters for scales to the dragon's body.", 'next_nodes': ['B.2'], 'evaluation_threshold': 0.9, 'max_attempts': 3}, {'id': 'B.2', 'task_description': "Add detailed emoji characters for claws to the dragon's legs.", 'next_nodes': ['B.3'], 'evaluation_threshold': 0.9, 'max_attempts': 3}, {'id': 'B.3', 'task_description': 'Add detailed emoji characters for horns and other features (e.g., wings, tail) to the dragon.', 'next_nodes': ['C'], 'evaluation_threshold': 0.9, 'max_attempts': 3}], 'rationale': 'Node B failed because it was too broad.  Breaking it down into smaller, more manageable subtasks focusing on specific dragon features will allow for more focused effort and easier identification of any remaining issues.'}}]
+[{'timestamp': datetime.datetime(2025, 2, 18, 20, 22, 21, 867377), 'name': 'B', 'failure_reason': 'Node B failed to reach threshold after 3 attempts.', 'llm_response': {'action': 'breakdown', 'new_subtasks': [{'name': 'B.1', 'description': "Add detailed emoji characters for scales to the dragon's body.", 'next_nodes': ['B.2'], 'evaluation_threshold': 0.9, 'max_attempts': 3}, {'name': 'B.2', 'description': "Add detailed emoji characters for claws to the dragon's legs.", 'next_nodes': ['B.3'], 'evaluation_threshold': 0.9, 'max_attempts': 3}, {'name': 'B.3', 'description': 'Add detailed emoji characters for horns and other features (e.g., wings, tail) to the dragon.', 'next_nodes': ['C'], 'evaluation_threshold': 0.9, 'max_attempts': 3}], 'rationale': 'Node B failed because it was too broad.  Breaking it down into smaller, more manageable subtasks focusing on specific dragon features will allow for more focused effort and easier identification of any remaining issues.'}}]
 
 **Instructions:**
 - Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
@@ -115,7 +115,7 @@ Node C failed to reach threshold after 3 attempts.
     2. **replan**: Go back to a previous node for replanning, 
 - If you choose **breakdown**, provide detailed descriptions of the new subtasks, only breakdown the current (failed) node, otherwise it should be replan. ex: if current node is B, breakdown nodes should be B.1, B.2, if current node is B.2, breakdown nodes should be B.2.1, B.2.2... and make the all nodes as chain eventually.
 - If you choose **replan**, specify which node to return to and suggest any modifications to the plan after that node, do not repeat previous failure replanning in the Replanning History.
-- The id generated following the naming convention as A.1, B.1.2, C.2.5.2, new id (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
+- The name generated following the naming convention as A.1, B.1.2, C.2.5.2, new name (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
 - Return your response in the following JSON format (do not include any additional text):
 
 ```json
@@ -123,19 +123,19 @@ Node C failed to reach threshold after 3 attempts.
     "action": "breakdown" or "replan",
     "new_subtasks": [  // Required if action is "breakdown"
         {
-            "id": "unique_task_id",
-            "task_description": "Description of the subtask",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
+            "name": "unique_task_name",
+            "description": "Description of the subtask",
+            "next_nodes": ["next_node_name_1", "next_node_name_2"],
             "evaluation_threshold": 0.9,
             "max_attempts": 3
         }
     ],
-    "restart_node_id": "node_id",  // Required if action is "replan"
+    "restart_node_name": "node_name",  // Required if action is "replan"
     "modifications": [  // Optional, used if action is "replan"
         {
-            "node_id": "node_to_modify_id",
-            "task_description": "Modified description",
-            "next_nodes": ["next_node_id_1", "next_node_id_2"],
+            "name": "node_to_modify_name",
+            "description": "Modified description",
+            "next_nodes": ["next_node_name_1", "next_node_name_2"],
             "evaluation_threshold": 0.9,
             "max_attempts": 3
         }
@@ -154,22 +154,22 @@ Node C failed to reach threshold after 3 attempts.
   "action": "breakdown",
   "new_subtasks": [
     {
-      "id": "C.1",
-      "task_description": "Check the overall composition of the dragon; ensure the head, body, wings, legs, and tail are properly proportioned and positioned.",
+      "name": "C.1",
+      "description": "Check the overall composition of the dragon; ensure the head, body, wings, legs, and tail are properly proportioned and positioned.",
       "next_nodes": ["C.2"],
       "evaluation_threshold": 0.9,
       "max_attempts": 3
     },
     {
-      "id": "C.2",
-      "task_description": "Examine the clarity of the emoji characters used. Are they easily identifiable and do they blend well together?",
+      "name": "C.2",
+      "description": "Examine the clarity of the emoji characters used. Are they easily identifiable and do they blend well together?",
       "next_nodes": ["C.3"],
       "evaluation_threshold": 0.9,
       "max_attempts": 3
     },
     {
-      "id": "C.3",
-      "task_description": "Assess the visual appeal of the dragon. Does it look like a cohesive and aesthetically pleasing image?",
+      "name": "C.3",
+      "description": "Assess the visual appeal of the dragon. Does it look like a cohesive and aesthetically pleasing image?",
       "next_nodes": [],
       "evaluation_threshold": 0.9,
       "max_attempts": 3
