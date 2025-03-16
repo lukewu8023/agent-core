@@ -18,9 +18,7 @@ from langchain_core.tools import BaseTool
 from agent_core.utils.logger import get_logger
 
 DEFAULT_EXECUTE_PROMPT = r"""
-Based on the below background, context and failed history, process the following 
-current task, being mindful not to repeat or reintroduce errors from previous failed attempts and respond with 
-those suggestions:
+Based on the below background, context and failed history, process the following current task, being mindful not to repeat or reintroduce errors from previous failed attempts, and respond with those suggestions:
 
 **Background**
 {background}
@@ -37,7 +35,7 @@ those suggestions:
 **Current Task**
 {description}
 
-**Tool**
+**Use Tool**
 {use_tool}
 
 **Tool Usage Guide**
@@ -128,7 +126,7 @@ Below are the details:
     "new_subtasks": [  // Required if action is "breakdown"
         {{
             "name": "...", // unique task name
-            "description": "...", // Description of the subtask
+            "description": "...", // description of the subtask
             "next_node": "...", // next node name
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
             "max_attempts": 3
@@ -148,7 +146,8 @@ Below are the details:
 }}
 ```
 
-**Note** Ensure your response is valid JSON, without any additional text or comments (// explain).
+**Note** 
+Ensure your response is valid JSON, without any additional text or comments (// explain).
 """
 
 # post-success replan prompt:
@@ -180,6 +179,9 @@ You are an intelligent planner. A subtask just succeeded. We can optionally add 
 Decide if we should:
     1.	do nothing (action = “none”) if plan is good enough to achieve the root task, or
     2.	modify the future steps in the plan (action = “replan”)
+    - Do not modify the current node because it has already been executed and succeeded, only modify the future steps.
+    - Make all the new nodes as chain eventually.
+    - The name generated following the naming convention as A.1, B.1.2, C.2.5.2, new name (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
 
 **Example**
 ```json
@@ -189,7 +191,7 @@ Decide if we should:
         {{
             "name": "...",
             "description": "...",
-            "next_node": "...",   
+            "next_node": "...", // leave it empty if it is the last node
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
             "max_attempts": 3
         }}
@@ -197,8 +199,10 @@ Decide if we should:
     "rationale": "..." // explanation of your reasoning here
 }}
 ```
-If “action” = “none”, leave “modifications” as empty arrays.
-**Note** Ensure your response is valid JSON, without any additional text or comments (// explain).
+(If “action” = “none”, leave “modifications” as empty arrays.)
+
+**Note** 
+Ensure your response is valid JSON, without any additional text or comments (// explain).
 """
 
 
@@ -206,6 +210,7 @@ class Node(Step):
     """
     Represents a single node in the PlanGraph.
     """
+
     next_node: Optional[str] = ""
     tool: Optional[BaseTool] = None
     evaluation_threshold: Optional[float] = None
@@ -258,9 +263,13 @@ class PlanGraph:
 class Adjustments(BaseModel):
     action: str
     rationale: str
-    new_subtasks: Optional[List[Node]] = field(default_factory=dict)  # Provide an empty list as default
+    new_subtasks: Optional[List[Node]] = field(
+        default_factory=dict
+    )  # Provide an empty list as default
     restart_node_name: Optional[str] = None  # Allow None if missing
-    modifications: Optional[List[Node]] = field(default_factory=dict)  # Provide an empty list as default
+    modifications: Optional[List[Node]] = field(
+        default_factory=dict
+    )  # Provide an empty list as default
 
 
 class ExecuteResult(BaseModel):
@@ -324,19 +333,19 @@ class GraphPlanner(BasePlanner):
         self._execute_prompt = value
 
     def plan(
-            self,
-            task: str,
-            tools: Optional[List[BaseTool]],
-            knowledge: str = "",
-            background: str = "",
-            categories: Optional[List[str]] = None,
+        self,
+        task: str,
+        tools: Optional[List[BaseTool]],
+        knowledge: str = "",
+        background: str = "",
+        categories: Optional[List[str]] = None,
     ) -> Steps:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
         2) Convert those Steps into a PlanGraph with Node objects.
         3) Return the same Steps (for reference), but we'll actually execute nodes later.
         """
-        self.logger.info(f"GraphPlanner: Creating plan for task: {task}")
+        self.logger.info(f"GraphPlanner is creating plan for task: {task}")
 
         # Use GenericPlanner internally to get the steps
         generic_planner = GenericPlanner(model_name=self.model_name, log_level=None)
@@ -389,13 +398,13 @@ class GraphPlanner(BasePlanner):
         return plan
 
     def execute_plan(
-            self,
-            plan: Steps,
-            task: str,
-            evaluators_enabled: bool,
-            evaluators: dict,
-            context_manager: ContextManager = ContextManager(),
-            background: str = "",
+        self,
+        plan: Steps,
+        task: str,
+        evaluators_enabled: bool,
+        evaluators: dict,
+        context_manager: ContextManager = ContextManager(),
+        background: str = "",
     ):
         """
         Executes the PlanGraph node by node.
@@ -422,7 +431,9 @@ class GraphPlanner(BasePlanner):
             step, threshold = self.execute(
                 node, evaluators_enabled, task, background, evaluators, None
             )
-            if pass_threshold(step.evaluator_result.score, node.evaluation_threshold, threshold):
+            if pass_threshold(
+                step.evaluator_result.score, node.evaluation_threshold, threshold
+            ):
                 self.success_result(node, execution_history, step)
                 continue
             else:
@@ -438,7 +449,9 @@ class GraphPlanner(BasePlanner):
                         retry_steps[-1],
                     )
                     evaluator_result = attempt_step.evaluator_result
-                    if pass_threshold(evaluator_result.score, node.evaluation_threshold, threshold):
+                    if pass_threshold(
+                        evaluator_result.score, node.evaluation_threshold, threshold
+                    ):
                         attempt_step.retries = retry_steps
                         retry = False
                     else:
@@ -448,7 +461,7 @@ class GraphPlanner(BasePlanner):
                     self.success_result(node, execution_history, step)
                     continue
                 else:
-                    self.logger.warning(f"Replanning needed at Node {node.name}")
+                    self.logger.warning(f"Replanning is needed at Node {node.name}")
                     failure_info = self._prepare_failure_info(
                         execution_history, retry_steps[-1]
                     )
@@ -481,7 +494,9 @@ class GraphPlanner(BasePlanner):
                         )
                         restart_node_name = self._determine_restart_node(adjustments)
                         if restart_node_name:
-                            execution_history = cleanup_context(execution_history, restart_node_name)
+                            execution_history = cleanup_context(
+                                execution_history, restart_node_name
+                            )
                             pg.current_node_name = restart_node_name
                         else:
                             break
@@ -494,7 +509,7 @@ class GraphPlanner(BasePlanner):
         return execution_history
 
     def execute(
-            self, node, evaluators_enabled, task, background, evaluators, failure_step
+        self, node, evaluators_enabled, task, background, evaluators, failure_step
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -523,13 +538,13 @@ class GraphPlanner(BasePlanner):
         self.plan_graph.current_node_name = node.next_node
 
     def _execute_node(
-            self,
-            node: Node,
-            model_name: str,
-            task: str,
-            background: str,
-            step: Step,
-            failure_step: Step,
+        self,
+        node: Node,
+        model_name: str,
+        task: str,
+        background: str,
+        step: Step,
+        failure_step: Step,
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
@@ -573,9 +588,7 @@ class GraphPlanner(BasePlanner):
             if data.use_tool:
                 if node.tool is not None:
                     try:
-                        tool_response = node.tool.invoke(
-                            data.tool_arguments
-                        )
+                        tool_response = node.tool.invoke(data.tool_arguments)
                         response = (
                             f"tool description: {node.tool.description}\n"
                             f"tool response : {tool_response}"
@@ -594,13 +607,13 @@ class GraphPlanner(BasePlanner):
         return response
 
     def _evaluate_node(
-            self,
-            node: Node,
-            root_task: str,
-            result: str,
-            evaluators_enabled: bool,
-            evaluators: Dict[str, BaseEvaluator],
-            background: str,
+        self,
+        node: Node,
+        root_task: str,
+        result: str,
+        evaluators_enabled: bool,
+        evaluators: Dict[str, BaseEvaluator],
+        background: str,
     ) -> (EvaluatorResult, float):
         """
         evaluate the node output using agent's evaluator if enabled.
@@ -608,9 +621,7 @@ class GraphPlanner(BasePlanner):
         """
         if not evaluators_enabled:
             return EvaluatorResult(), 0.0
-        chosen_cat = (
-            node.category if node.category in evaluators else "default"
-        )
+        chosen_cat = node.category if node.category in evaluators else "default"
         evaluator = evaluators.get(chosen_cat)
         if not evaluator:
             self.logger.warning(
@@ -620,11 +631,13 @@ class GraphPlanner(BasePlanner):
         evaluator_result = evaluator.evaluate(
             root_task, node.description, result, background, self.context_manager
         )
-        self.logger.info(f"Node {node.name} execution score: {evaluator_result.to_log()}")
+        self.logger.info(
+            f"Node {node.name} evaluation result: {evaluator_result.to_log()}"
+        )
         return evaluator_result, evaluator.evaluation_threshold
 
     def _prepare_failure_info(
-            self, execute_history: Steps, current_failed: Step
+        self, execute_history: Steps, current_failed: Step
     ) -> Dict:
         """
         Produce the context for replan prompt.
@@ -806,9 +819,7 @@ class GraphPlanner(BasePlanner):
                     node = self.plan_graph.nodes.pop(mod.name)
                     node.current_attempts = 0
                     node.description = (
-                        mod.description
-                        if mod.description
-                        else node.description
+                        mod.description if mod.description else node.description
                     )
                     node.next_node = mod.next_node if mod.next_node else node.next_node
                     node.evaluation_threshold = (
@@ -819,9 +830,7 @@ class GraphPlanner(BasePlanner):
                     node.max_attempts = (
                         mod.max_attempts if mod.max_attempts else node.max_attempts
                     )
-                    node.category = (
-                        mod.category if mod.category else node.category
-                    )
+                    node.category = mod.category if mod.category else node.category
                     self.plan_graph.add_node(node)
                 else:
                     # If the node does not exist, create a new Node

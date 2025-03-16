@@ -24,4 +24,4 @@ class EvaluatorResult(BaseModel):
         }
 
     def to_log(self) -> str:
-        return f"""Evaluator Decision: {self.decision}, score: {self.score}, suggestion: {self.suggestion}"""
+        return f"""Evaluator Decision: {self.decision}, Score: {self.score}, Suggestion: {self.suggestion}"""

@@ -33,7 +33,7 @@ def load_models_dynamically(logger):
 
 class ModelRegistry:
     _models: Dict[str, BaseModel] = {}
-    logger = get_logger("model-registry")
+    logger = get_logger("ModelRegistry")
 
     @classmethod
     def register_model(cls, model: BaseModel):

@@ -16,6 +16,22 @@ output
 - print evaluator suggestion
 - enrich llm related log (llm input/output/prompt)
 - centrilize output structure
+tracing findings
+- Raw LLM request
+- 4 times retry after success replan
+- review replanning history
+- only A.1 in context? why A.1.2.1 add even it failed
+- 0.9 still rerun
+2025-03-17 02:23:45,112 - GraphPlanner - INFO - Executing Node A.1.2: Arrange the selected emoji characters to form a cohesive dragon head. Experiment with different arrangements to optimize visual appeal.
+2025-03-17 02:23:45,870 - GraphPlanner - INFO - Response:
+ 🐉뿔👀👄
+2025-03-17 02:23:49,314 - GraphPlanner - INFO - Node A.1.2 execution score: Evaluator Decision: Rerun Subtask, score: 0.9, suggestion: Experiment with different arrangements of the emojis to create a more visually appealing and recognizable dragon head. Consider placing the horns (뿔) above the eyes (👀) and the snout (👄) below the eyes.  Try different orders to see what looks best.  Perhaps adding spacing between the emojis might also improve the visual result.
+2025-03-17 02:23:49,314 - GraphPlanner - INFO - Executing Node A.1.2: Arrange the selected emoji characters to form a cohesive dragon head. Experiment with different arrangements to optimize visual appeal.
+2025-03-17 02:23:50,129 - GraphPlanner - INFO - Response:
+ 🐉
+뿔
+👀
+👄
 bug
 - return json has "/" will cause crash
 langgragh

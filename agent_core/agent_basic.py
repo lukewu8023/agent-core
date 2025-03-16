@@ -29,4 +29,4 @@ class AgentBasic(ABC):
     def model_name(self, model_name: str):
         self._model_name = model_name
         self._model = ModelRegistry.get_model(model_name)
-        self.logger.info(f"{self.name} set to: {model_name}")
+        self.logger.info(f"{self.name} uses model: {model_name}")

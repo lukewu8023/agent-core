@@ -91,7 +91,7 @@ class Agent(AgentBasic):
         self.evaluators = {}
         self._load_default_evaluators()
 
-        self.logger.info("Agent instance created.")
+        self.logger.info("Agent instance is created.")
 
     def execute(self, task: str):
         """
@@ -167,7 +167,7 @@ class Agent(AgentBasic):
         history_text = self._execution_history.execution_history_to_str()
         final_prompt = self.summary_prompt.format(history_text=history_text)
 
-        self.logger.info("Generating final execution result (summary).")
+        self.logger.info("Generating execution result summary.")
         summary_response = self._model.process(final_prompt)
         return str(summary_response)
 
@@ -177,7 +177,7 @@ class Agent(AgentBasic):
             self.logger.error(error_msg)
             raise TypeError(error_msg)
         self.planner = planner
-        self.logger.info(f"Agent planner set to: {planner.__class__.__name__}")
+        self.logger.info(f"Agent planner uses model: {planner.__class__.__name__}")
 
     @property
     def execution_history(self) -> Steps:
@@ -189,11 +189,11 @@ class Agent(AgentBasic):
 
     def enable_evaluators(self):
         self.evaluators_enabled = True
-        self.logger.info("evaluators have been enabled.")
+        self.logger.info("Evaluators have been enabled.")
 
     def disable_evaluators(self):
         self.evaluators_enabled = False
-        self.logger.info("evaluators have been disabled.")
+        self.logger.info("Evaluators have been disabled.")
 
     @property
     def execution_responses(self) -> str:

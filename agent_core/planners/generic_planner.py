@@ -14,8 +14,7 @@ class GenericPlanner(BasePlanner):
     Each step may optionally specify a category, used for specialized evaluation.
     """
 
-    EXAMPLE_JSON1 = """
-    {
+    EXAMPLE_JSON1 = """{
         "steps": [
             {
                 "name": "Prepare eggs",
@@ -27,11 +26,9 @@ class GenericPlanner(BasePlanner):
             },
             ...
         ]
-    }
-    """
+    }"""
 
-    EXAMPLE_JSON2 = """
-    {
+    EXAMPLE_JSON2 = """{
         "steps": [
             {
                 "name": "Plan code structure",
@@ -42,8 +39,7 @@ class GenericPlanner(BasePlanner):
             },
             ...
         ]
-    }
-    """
+    }"""
 
     def __init__(self, model_name: str = None, log_level: Optional[str] = None):
         """
