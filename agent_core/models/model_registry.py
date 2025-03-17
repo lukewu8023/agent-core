@@ -9,7 +9,7 @@ from .base_model import BaseModel
 from agent_core.utils.logger import get_logger
 
 
-def load_models_dynamically(logger):
+def load_models_dynamically():
     """
     Dynamically load and register all model classes from the models package.
     """
@@ -60,7 +60,7 @@ class ModelRegistry:
     def load_models(cls, log_level: str = None):
         logger = get_logger(cls.__name__, log_level)
         try:
-            load_models_dynamically(logger)
+            load_models_dynamically()
         except Exception as e:
             logger.error(f"Error loading models: {e}")
             raise

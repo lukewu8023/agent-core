@@ -7,13 +7,14 @@ import os
 
 
 class Gemini15PRO002Model(BaseModel):
+
     def __init__(self):
         super().__init__()
         self.model_instance = ChatOpenAI(
             model_name="gemini-1.5-pro-002", temperature=0.1, verbose=True
         )
 
-    def process(self, request: str) -> str:
+    def invoke(self, request: str) -> str:
         messages = [
             HumanMessage(request),
         ]
