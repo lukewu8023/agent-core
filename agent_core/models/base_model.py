@@ -21,7 +21,7 @@ class BaseModel(ABC):
     def name(self) -> str:
         pass
 
-    def add_token(self, response,):
+    def add_token(self, response):
         if (hasattr(response, "usage_metadata")
                 and 'total_tokens' in response.usage_metadata):
             self.token = self.token + response.usage_metadata['total_tokens']
