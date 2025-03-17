@@ -5,7 +5,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 import os
 
+
 class Gemini15Flash002Model(BaseModel):
+
     def __init__(self):
         super().__init__()
         self.model_instance = ChatOpenAI(
@@ -14,7 +16,7 @@ class Gemini15Flash002Model(BaseModel):
         os.getenv("openai_api_key")
         pass
 
-    def process(self, request: str) -> str:
+    def invoke(self, request: str) -> str:
         messages = [
             HumanMessage(request),
         ]
@@ -29,3 +31,4 @@ class Gemini15Flash002Model(BaseModel):
 
     def name(self) -> str:
         return "gemini-1.5-flash-002"
+

@@ -6,13 +6,14 @@ from langchain_core.messages import HumanMessage
 
 
 class GPT4OMiniModel(BaseModel):
+
     def __init__(self):
         super().__init__()
         self.model_instance = ChatOpenAI(
             model_name="gpt-4o-mini", temperature=0.1, verbose=True
         )
 
-    def process(self, request: str) -> str:
+    def invoke(self, request: str) -> str:
         messages = [
             HumanMessage(request),
         ]
