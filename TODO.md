@@ -11,17 +11,17 @@ threshold
 replan
 - Auto generate missing step (especially new tool call) (done need test)
 output
-- reasoning and validation prompt in execute history
-- final respose of the task
-- print evaluator suggestion
-- enrich llm related log (llm input/output/prompt)
-- centrilize output structure
+- reasoning and validation prompt in execute history(done need test)
+- final respose of the task(done need test)
+- print evaluator suggestion(done need test)
+- enrich llm related log (llm input/output/prompt)(done need test)
+- centrilize output structure(done need test)
 tracing findings
-- Raw LLM request
-- 4 times retry after success replan
+- Raw LLM request - log
+- 4 times retry after success replan (done)
 - review replanning history
 - only A.1 in context? why A.1.2.1 add even it failed
-- 0.9 still rerun
+- 0.9 still rerun (done)
 2025-03-17 02:23:45,112 - GraphPlanner - INFO - Executing Node A.1.2: Arrange the selected emoji characters to form a cohesive dragon head. Experiment with different arrangements to optimize visual appeal.
 2025-03-17 02:23:45,870 - GraphPlanner - INFO - Response:
  🐉뿔👀👄

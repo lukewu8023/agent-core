@@ -43,13 +43,25 @@ class ContextManager:
         If the context is empty, return an empty string.
         Otherwise, wrap each key/value pair in <key></key> inside <context></context>.
         """
+        context_str = ""
         if not self.context:
-            return ""
-        context_str = "<Context>\n"
+            return context_str
         for key, value in self.context.items():
-            context_str += f"<{key}>\n{value}\n</{key}>\n"
-        context_str += "</Context>\n"
+            context_str += f"*{key}*\n{value}\n*{key}*\n"
         return context_str
+    #
+    # def context_to_str(self):
+    #     """
+    #     If the context is empty, return an empty string.
+    #     Otherwise, wrap each key/value pair in <key></key> inside <context></context>.
+    #     """
+    #     if not self.context:
+    #         return ""
+    #     context_str = "<Context>\n"
+    #     for key, value in self.context.items():
+    #         context_str += f"<{key}>\n{value}\n</{key}>\n"
+    #     context_str += "</Context>\n"
+    #     return context_str
 
     def __repr__(self):
         """So print(context) shows the stored keys and values nicely."""

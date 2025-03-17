@@ -59,7 +59,7 @@ If task use tool is false, example:
 ```json
 {{
     "use_tool": false,
-    "response": "result detail"
+    "response": "<string>"
 }}
 ```
 
@@ -289,9 +289,9 @@ def cleanup_context(execution_history: Steps, restart_node_name):
 
 def pass_threshold(score, node_threshold, evaluator_threshold):
     if node_threshold:
-        return score > node_threshold
+        return score >= node_threshold
     else:
-        return score > evaluator_threshold
+        return score >= evaluator_threshold
 
 
 class GraphPlanner(BasePlanner):
@@ -439,7 +439,7 @@ class GraphPlanner(BasePlanner):
             else:
                 retry = True
                 retry_steps: List[Step] = [step]
-                while retry and node.max_attempts >= node.current_attempts:
+                while retry and node.max_attempts > node.current_attempts:
                     attempt_step, threshold = self.execute(
                         node,
                         evaluators_enabled,
@@ -482,10 +482,7 @@ class GraphPlanner(BasePlanner):
                         pg.add_history_record(
                             {
                                 "name": node.name,
-                                "failure_reason": retry_steps[
-                                    -1
-                                ].evaluator_result.details,
-                                "llm_response": adjustments,
+                                "replan_history": adjustments,
                             }
                         )
                         self.apply_adjustments_to_plan(node.name, adjustments)
@@ -549,7 +546,7 @@ class GraphPlanner(BasePlanner):
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
         """
-        self.logger.info(f"Executing Node {node.name}: {node.description}")
+        self.logger.info(f"Executing Node {node.name} Attempt {node.current_attempts + 1}: {node.description}")
         failure_info = ""
         if failure_step:
             failure_info = f"Result : {failure_step.result}, Result Suggestion: {failure_step.evaluator_result.suggestion}"
@@ -574,7 +571,7 @@ class GraphPlanner(BasePlanner):
             context=self.context_manager.context_to_str(),
             task=task,
             background=background,
-            description=f"**Step {node.name}**\nTask Desc: {node.description}",
+            description=f"Step {node.name}\nTask Desc: {node.description}",
             use_tool=node.use_tool,
             tool_description=tool_description,
             failure_info=failure_info,
@@ -645,7 +642,7 @@ class GraphPlanner(BasePlanner):
         pg = self.plan_graph
         return {
             "failure_reason": (
-                current_failed.evaluator_result.details if current_failed else ""
+                current_failed.evaluator_result.score if current_failed else ""
             ),
             "execution_history": execute_history.get_info(),
             "replan_history": pg.replan_history,

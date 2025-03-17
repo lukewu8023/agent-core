@@ -43,6 +43,7 @@ class Step(BaseModel):
             "use_tool": self.use_tool,
             "tool_name": self.tool_name,
             "category": self.category,
+            "result": self.result
         }
 
 
@@ -58,11 +59,11 @@ class Steps(BaseModel):
         self.steps.append(step)
 
     def get_info(self):
-        return [step.get_info() for step in self.steps]
+        return [step.to_dict() for step in self.steps]
 
     def to_dict(self):
         # Convert the Steps instance to a dictionary
-        return {"steps": [step.to_dict() for step in self.steps]}
+        return {"steps": self.get_info}
 
     def get_last_step_output(self):
         if self.steps is not None and len(self.steps) > 0:
