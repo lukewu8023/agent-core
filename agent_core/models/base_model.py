@@ -15,9 +15,9 @@ class BaseModel(ABC):
         self.logger = get_logger(self.__class__.__name__)
 
     def process(self, request: str) -> (str, int):
-        self.logger.info(f"LLM Request {request}")
+        self.logger.debug(f"LLM Request {request}")
         response = self.invoke(request)
-        self.logger.info(f"LLM Response {response}")
+        self.logger.debug(f"LLM Response {response}")
         return response
 
     @abstractmethod
