@@ -21,40 +21,45 @@ class Agent(AgentBasic):
     """
 
     DEFAULT_EXECUTE_PROMPT = """
-    {context_section}
-    
-    **Background**
-    {background}
+{context_section}
 
-    **Task**
-    {task}
+**Background**
+{background}
+
+**Task**
+{task}
     """
 
     DEFAULT_SUMMARY_PROMPT = """
-    You are an assistant summarizing the outcome of a multi-step plan execution.
-    Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
-    
-    **Execution History**
-    {history_text}
-    
-    Output format:
-    ## Summary
-    ## Output Result
-    ## Conclusion
+You are an assistant summarizing the outcome of a multi-step plan execution.
+Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
+
+**Execution History**
+{history_text}
+
+**Output format**
+{{
+    "summary": "A detailed summary of how the solution was achieved",
+    "output_result": "The final output/result of the execution",
+    "conclusion": "A brief conclusion about the overall execution"
+}}
+
+**Important**
+- Ensure your response is valid JSON without any additional text or comments (// explain).
     """
 
     DEFAULT_FINAL_RESPONSE_PROMPT = """
-    You are an assistant to response user's query.
-    Given user'query and step-by-step result of execution history. 
-    Generate the final response to user. The final answer usually in the last step.
-    
-    **User Query**
-    {task}
-    
-    **Execution History**
-    {history_text}
-    
-    Response:
+You are an assistant to response user's query.
+Given user'query and step-by-step result of execution history. 
+Generate the final response to user. The final answer usually in the last step.
+
+**User Query**
+{task}
+
+**Execution History**
+{history_text}
+
+Response:
     """
 
     def __init__(
@@ -136,8 +141,12 @@ class Agent(AgentBasic):
         response = self._model.process(final_prompt)
         self.logger.info(f"Response: {response}")
         self._execution_history.add_step(
-            Step(name="Direct Task Execution", description=task,
-                 result=str(response), prompt=final_prompt)
+            Step(
+                name="Direct Task Execution",
+                description=task,
+                result=str(response),
+                prompt=final_prompt,
+            )
         )
         return response
 
@@ -169,7 +178,8 @@ class Agent(AgentBasic):
 
         self.logger.info("Generating execution result summary.")
         summary_response = self._model.process(final_prompt)
-        return str(summary_response)
+        cleaned = summary_response.replace("```json", "").replace("```", "").strip()
+        return str(cleaned)
 
     def planner(self, planner):
         if not issubclass(planner.__class__, BasePlanner):
