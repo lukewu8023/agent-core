@@ -2,7 +2,7 @@
 
 import json
 from typing import Optional
-from .base_evaluator import BaseEvaluator
+from .base_evaluator import BaseEvaluator, parse_scored_evaluation_response
 from .entities.evaluator_result import EvaluatorResult
 
 
@@ -91,7 +91,8 @@ Do not include any extra keys or text outside this JSON.
         evaluation_response = self._model.process(prompt_text)
 
         # parse the JSON
-        decision, score, suggestion, details = self.parse_scored_evaluation_response(
+        decision, score, suggestion, details = parse_scored_evaluation_response(
+            self.evaluation_threshold,
             evaluation_response
         )
 
@@ -106,40 +107,3 @@ Do not include any extra keys or text outside this JSON.
 
     def default_prompt(self):
         return self.DEFAULT_PROMPT
-
-    def parse_scored_evaluation_response(self, evaluation_response: str):
-        """
-        Attempt to parse the JSON. If invalid, treat as "Rerun Subtask" with 0 score.
-        """
-        try:
-            cleaned = (
-                evaluation_response.replace("```json", "").replace("```", "").strip()
-            )
-            data = json.loads(cleaned)
-            points = data.get("points", [])
-
-            """Extract scores from JSON and calculate the total score."""
-            scores = [point["score"] for point in points]
-            total_score = sum(scores)
-
-            # Check if any criterion scored below 3
-            any_low_scores = any(score < 3 for score in scores)
-
-            # Convert total_score from 0..40 to 0..1 scale for the node's final check
-            numeric_score = float(total_score) / 40.0
-
-            # Final decision logic
-            if numeric_score > self.evaluation_threshold and not any_low_scores:
-                recommendation = "Accept Output"
-            else:
-                recommendation = "Rerun Subtask"
-
-            improvement_suggestion = data.get("improvement_suggestion", "")
-            # We will keep the entire JSON in details for reference
-            details = data
-
-            return recommendation, numeric_score, improvement_suggestion, details
-        except Exception as e:
-            # If parse fails, fallback
-            details = {"parse_error": str(e), "raw_response": evaluation_response}
-            return "Rerun Subtask", 0, "Rerun this step.", details

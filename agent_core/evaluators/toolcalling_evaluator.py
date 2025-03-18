@@ -1,11 +1,57 @@
 # evaluators/toolcalling_evaluator.py
 
-import json
-from typing import Optional
-
-from .base_evaluator import BaseEvaluator
+from .base_evaluator import BaseEvaluator, parse_scored_evaluation_response
 from .entities.evaluator_result import EvaluatorResult
 from agent_core.utils.context_manager import ContextManager
+
+
+EVALUATOR_PROMPT = """
+You are an expert evaluator of AI-generated tool calls. Evaluate the provided tool call based on the following criteria:
+- Each criterion is scored on a scale of 1 to 5 (1 = very poor, 5 = excellent).
+- For each criterion, provide a short justification.
+
+1. **Correct Tool Selection** (Score 1-5): The agent invoked the correct tool for the given task.
+2. **Parameter Accuracy** (Score 1-5): The tool call contains the correct parameters with expected values.
+3. **Parameter Completeness** (Score 1-5): All required parameters are present; none are missing.
+4. **Parameter Relevance** (Score 1-5): The provided parameters are meaningful and necessary for the tool’s intended function.
+5. **Format Correctness** (Score 1-5): The tool call follows the expected JSON structure and data types.
+6. **Contextual Consistency** (Score 1-5): The tool call aligns with prior steps and expected behavior within the task flow.
+7. **Execution Readiness** (Score 1-5): The tool call is directly executable without requiring additional corrections or assumptions.
+8. **Error Handling & Robustness** (Score 1-5): The tool call accounts for potential edge cases (e.g., missing data, boundary values).
+
+**Background**
+{background}
+
+**Context**
+{context}
+
+**Description of Ultimate Task Goal**
+{root_task}
+
+**Description of Current Step**
+{request}
+
+**Output of current step**
+{response}
+
+Evaluation of Current Step:
+**Return Format**:
+{{
+    "points": [
+    {{
+        "criterion": "<string>",
+        "score": <integer>,
+        "justification": "<string>"
+    }},
+    ...
+    ],
+    "improvement_suggestion": "<string>"
+}}
+
+**IMPORTANT**:
+Return the result strictly in a valid JSON object, with no extra text.
+If a correction is needed, provide it in "improvement_suggestion" (leave empty if all scores are 5).
+"""
 
 
 class ToolCallingEvaluator(BaseEvaluator):
@@ -16,11 +62,7 @@ class ToolCallingEvaluator(BaseEvaluator):
     """
 
     def default_prompt(self):
-        """
-        We do not actually call the LLM for function calling validation,
-        so we won't rely on a prompt. Just return an empty string.
-        """
-        return ""
+        return EVALUATOR_PROMPT
 
     def evaluate(
         self,
@@ -36,67 +78,26 @@ class ToolCallingEvaluator(BaseEvaluator):
            Otherwise => score=0
         3) Return a JSON structure with the same shape as the other evaluators.
         """
-        # Initialize defaults
-        overall_score = 0
-        justification = ""
+        prompt_text = self.prompt.format(
+            root_task=root_task,
+            request=request,
+            response=response,
+            background=background,
+            context=context_manager.context_to_str(),
+        )
+        evaluation_response = self._model.process(prompt_text)
 
-        try:
-            # Attempt to parse the 'response' (which should be normal text, but we expect JSON or something).
-            # For safety, treat 'response' as if it might contain JSON. If we cannot parse it, that is invalid.
-            data = None
-            cleaned = response.strip()
-            # in practice we might accept partial JSON. But let's do a quick parse:
-            data = json.loads(cleaned)
-            # Minimal check:
-            if isinstance(data, dict):
-                if data.get("use_tool") is True and isinstance(
-                    data.get("tool_arguments"), dict
-                ):
-                    # Valid
-                    overall_score = 40.0
-                    justification = (
-                        "Function calling signature and parameters appear valid."
-                    )
-                else:
-                    justification = "Function calling signature is invalid or missing 'use_tool'/'tool_arguments'."
-            else:
-                justification = "No valid JSON object found in response."
-        except Exception:
-            justification = "Failed to parse JSON in the function-calling response."
-
-        # Build standard JSON structure
-        # We'll have only one 'point': 'function_call_validity'
-        points = [
-            {
-                "criterion": "function_call_validity",
-                "score": overall_score,
-                "justification": justification,
-            }
-        ]
-
-        total_score = overall_score  # since we have only one point
-        recommendation = "Accept Output" if total_score == 40.0 else "Rerun Subtask"
-        rerun_suggestion = (
-            ""
-            if recommendation == "Accept Output"
-            else "Invalid function signature or arguments, please regenerate."
+        # parse the JSON
+        decision, score, suggestion, details = parse_scored_evaluation_response(
+            self.evaluation_threshold,
+            evaluation_response
         )
 
-        # We'll interpret the final numeric_score as overall_score / 40.0 => 1.0 or 0.0
-        numeric_score = float(overall_score) / 40.0  # 0 or 1
-
-        # The "details" field can carry the raw JSON
-        details_json = {
-            "points": points,
-            "improvement_suggestion": rerun_suggestion,
-        }
-
-        # Create an EvaluatorResult object
         return EvaluatorResult(
             name=self.name,
-            decision=recommendation,
-            score=numeric_score,  # normalized if you wish. Here it's either 0.0 or 1.0
-            suggestion=rerun_suggestion,
-            details=details_json,
-            prompt=self.prompt
+            decision=decision,
+            score=score,
+            suggestion=suggestion,
+            details=details,
+            prompt=prompt_text,
         )
