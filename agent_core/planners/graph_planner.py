@@ -152,7 +152,7 @@ Ensure your response is valid JSON, without any additional text or comments (// 
 
 # post-success replan prompt:
 DEFAULT_SUCCESS_REPLAN_PROMPT = """
-You are an intelligent planner. A subtask just succeeded. We can optionally add or adjust future steps if we see it’s necessary (maybe some information is missing or an additional tool call is beneficial).
+You are an intelligent planner reviewing a plan after the successful execution of a subtask. Your goal is to assess whether the current plan still effectively achieves the root task, or if minimal adjustments to future unexecuted steps are necessary (maybe some information is missing or an additional tool call is required to get the required information). Only replan if absolutely required. Prefer leaving the plan unchanged if it remains sufficient.
 
 **Background**
 {background}
@@ -163,25 +163,27 @@ You are an intelligent planner. A subtask just succeeded. We can optionally add 
 **Tools**
 {tools_knowledge}
 
-**Categories*
+**Categories**
 {categories_str}
 
 **Root Task**
 {root_task}
 
-**Plan & Execution(Each node with results if executed)**
+**Plan & Execution (Each node with execution results, if executed)**
 {plan_summary}
 
 **Current Node Name**
 {current_node_name}
 
 **Instructions**
-Decide if we should:
-    1.	do nothing (action = “none”) if plan is good enough to achieve the root task, or
-    2.	modify the future steps in the plan (action = “replan”)
-    - Do not modify the current node because it has already been executed and succeeded, only modify the future steps.
-    - Make all the new nodes as chain eventually.
-    - The name generated following the naming convention as A.1, B.1.2, C.2.5.2, new name (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
+Decide between:
+1. Do nothing (action = "none") if the remaining plan is likely to fulfill the root task and no critical changes are needed.
+2. Replan (action = "replan") only if there's a clear gap or something essential missing in the upcoming steps (for example, need to retrieve required information from a tool, then add a step of the tool calling)
+
+When replanning:
+- Modify only the future (unexecuted) steps.
+- Name new nodes following the hierarchy (e.g., current `B` → new sub `B.1`).
+- Keep additions minimal and targeted; aim for simplicity.
 
 **Example**
 ```json
@@ -191,7 +193,7 @@ Decide if we should:
         {{
             "name": "...",
             "description": "...",
-            "next_node": "...", // leave it empty if it is the last node
+            "next_node": "...", // leave it empty string if it is the last node
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
             "max_attempts": 3
         }}
@@ -201,8 +203,35 @@ Decide if we should:
 ```
 (If “action” = “none”, leave “modifications” as empty arrays.)
 
-**Note** 
-Ensure your response is valid JSON, without any additional text or comments (// explain).
+**Data Example**
+if no change on the plan:
+```json
+{{
+    "action": "none",
+    "modifications": [],
+    "rationale": "The remaining steps are adequate to achieve the root task. No replanning required."
+}}
+```
+or, if minimal replanning is necessary:
+```json
+{{
+    "action": "replan",
+    "modifications": [ // build full steps to replace the un-executed steps
+        {{
+            "name": "B.2.1",
+            "description": "Obtain missing data required to proceed.",
+            "next_node": "B.3", 
+            "evaluation_threshold": 0.8,
+            "max_attempts": 3
+        }}
+    ],
+    "rationale": "The original plan lacked critical information to proceed, hence a minimal adjustment is required."
+}}
+```
+
+**Important**
+- Ensure your response is valid JSON without any additional text or comments (// explain).
+- Default action should strongly favor “none”. Only replan if absolutely essential.
 """
 
 
@@ -679,7 +708,7 @@ tool response : {tool_response}
 
         self.logger.info("Calling model for success replan instructions...")
         response = self._model.process(final_prompt)
-        self.logger.info(f"Success replan response:\n{response}")
+        self.logger.debug(f"Success replan response:\n{response}")
         cleaned = response.replace("```json", "").replace("```", "").strip()
         try:
             adjustments = Adjustments.model_validate_json(cleaned)
