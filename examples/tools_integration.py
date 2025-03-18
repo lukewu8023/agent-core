@@ -22,7 +22,7 @@ def get_event(event_id: Annotated[int, "event id"]) -> dict:
         "event": {
             "id": 10000,
             "version": 1,
-            "date": {"start_time": "1700000000", "end_time": "1710000000"},
+            "date": {"start_time": "1700000000", "end_time": "1700010000"},
         }
     }
 
@@ -83,6 +83,7 @@ def main():
 
     agent.tools = [get_event, get_metric, get_log, get_trace]
     agent.planner = GraphPlanner(model_name="gemini-1.5-pro-002")
+    agent.enable_evaluators()
 
     task = "Find the specifics root cause and get more detail about why the event id: 10000 in IE component failed?"
     agent.execute(task)

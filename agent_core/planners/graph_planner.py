@@ -274,7 +274,7 @@ class Adjustments(BaseModel):
 
 class ExecuteResult(BaseModel):
     use_tool: bool
-    response: Optional[Any]
+    response: Optional[Any] = None
     tool_name: Optional[str] = None
     tool_arguments: Optional[Any] = None
 
@@ -333,12 +333,12 @@ class GraphPlanner(BasePlanner):
         self._execute_prompt = value
 
     def plan(
-        self,
-        task: str,
-        tools: Optional[List[BaseTool]],
-        knowledge: str = "",
-        background: str = "",
-        categories: Optional[List[str]] = None,
+            self,
+            task: str,
+            tools: Optional[List[BaseTool]],
+            knowledge: str = "",
+            background: str = "",
+            categories: Optional[List[str]] = None,
     ) -> Steps:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
@@ -398,13 +398,13 @@ class GraphPlanner(BasePlanner):
         return plan
 
     def execute_plan(
-        self,
-        plan: Steps,
-        task: str,
-        evaluators_enabled: bool,
-        evaluators: dict,
-        context_manager: ContextManager = ContextManager(),
-        background: str = "",
+            self,
+            plan: Steps,
+            task: str,
+            evaluators_enabled: bool,
+            evaluators: dict,
+            context_manager: ContextManager = ContextManager(),
+            background: str = "",
     ):
         """
         Executes the PlanGraph node by node.
@@ -432,7 +432,7 @@ class GraphPlanner(BasePlanner):
                 node, evaluators_enabled, task, background, evaluators, None
             )
             if pass_threshold(
-                step.evaluator_result.score, node.evaluation_threshold, threshold
+                    step.evaluator_result.score, node.evaluation_threshold, threshold
             ):
                 self.success_result(node, execution_history, step)
                 continue
@@ -450,7 +450,7 @@ class GraphPlanner(BasePlanner):
                     )
                     evaluator_result = attempt_step.evaluator_result
                     if pass_threshold(
-                        evaluator_result.score, node.evaluation_threshold, threshold
+                            evaluator_result.score, node.evaluation_threshold, threshold
                     ):
                         attempt_step.retries = retry_steps
                         retry = False
@@ -506,7 +506,7 @@ class GraphPlanner(BasePlanner):
         return execution_history
 
     def execute(
-        self, node, evaluators_enabled, task, background, evaluators, failure_step
+            self, node, evaluators_enabled, task, background, evaluators, failure_step
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -535,13 +535,13 @@ class GraphPlanner(BasePlanner):
         self.plan_graph.current_node_name = node.next_node
 
     def _execute_node(
-        self,
-        node: Node,
-        model_name: str,
-        task: str,
-        background: str,
-        step: Step,
-        failure_step: Step,
+            self,
+            node: Node,
+            model_name: str,
+            task: str,
+            background: str,
+            step: Step,
+            failure_step: Step,
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
@@ -587,8 +587,11 @@ class GraphPlanner(BasePlanner):
                     try:
                         tool_response = node.tool.invoke(data.tool_arguments)
                         response = (
-                            f"tool description: {node.tool.description}\n"
-                            f"tool response : {tool_response}"
+                            f"""
+tool description: {tool_description}
+tool arguments: {data.tool_arguments} 
+tool response : {tool_response}
+"""
                         )
                     except Exception as e:
                         response = "Incorrect tool arguments and unexpected result when invoke the tool."
@@ -604,13 +607,13 @@ class GraphPlanner(BasePlanner):
         return response
 
     def _evaluate_node(
-        self,
-        node: Node,
-        root_task: str,
-        result: str,
-        evaluators_enabled: bool,
-        evaluators: Dict[str, BaseEvaluator],
-        background: str,
+            self,
+            node: Node,
+            root_task: str,
+            result: str,
+            evaluators_enabled: bool,
+            evaluators: Dict[str, BaseEvaluator],
+            background: str,
     ) -> (EvaluatorResult, float):
         """
         evaluate the node output using agent's evaluator if enabled.
@@ -634,7 +637,7 @@ class GraphPlanner(BasePlanner):
         return evaluator_result, evaluator.evaluation_threshold
 
     def _prepare_failure_info(
-        self, execute_history: Steps, current_failed: Step
+            self, execute_history: Steps, current_failed: Step
     ) -> Dict:
         """
         Produce the context for replan prompt.
