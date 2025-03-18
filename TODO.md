@@ -13,25 +13,21 @@ replan
 output
 - reasoning and validation prompt in execute history(done need test)
 - final respose of the task(done need test)
-- print evaluator suggestion(done need test)
+- print evaluator suggestion(done need test)                                                                                                                                                
 - enrich llm related log (llm input/output/prompt)(done need test)
 - centrilize output structure(done need test)
 tracing findings
-- Raw LLM request - log
-- 4 times retry after success replan (done)
-- review replanning history
-- only A.1 in context? why A.1.2.1 add even it failed
-- 0.9 still rerun (done)
-2025-03-17 02:23:45,112 - GraphPlanner - INFO - Executing Node A.1.2: Arrange the selected emoji characters to form a cohesive dragon head. Experiment with different arrangements to optimize visual appeal.
-2025-03-17 02:23:45,870 - GraphPlanner - INFO - Response:
- 🐉뿔👀👄
-2025-03-17 02:23:49,314 - GraphPlanner - INFO - Node A.1.2 execution score: Evaluator Decision: Rerun Subtask, score: 0.9, suggestion: Experiment with different arrangements of the emojis to create a more visually appealing and recognizable dragon head. Consider placing the horns (뿔) above the eyes (👀) and the snout (👄) below the eyes.  Try different orders to see what looks best.  Perhaps adding spacing between the emojis might also improve the visual result.
-2025-03-17 02:23:49,314 - GraphPlanner - INFO - Executing Node A.1.2: Arrange the selected emoji characters to form a cohesive dragon head. Experiment with different arrangements to optimize visual appeal.
-2025-03-17 02:23:50,129 - GraphPlanner - INFO - Response:
- 🐉
-뿔
-👀
-👄
+- Need to add execution result in **Plan & Execution (Each node with execution results, if executed)** in success replan
+- Need all executed results in **Plan & Execution (Each node with execution results, if executed)** in success replan
+- Need to add all failed execution in **Failed History** in agent execution
+- Wrong failure reason
+**Failure Reason**
+0.85
+- review **Execution History**
+(Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.)
+- where this is from
+INFO:Agent:Generating execution result summary.
+
 bug
 - return json has "/" will cause crash
 langgragh
@@ -86,3 +82,9 @@ langgragh
 - R2D2 guidance
 - tool execute try catch exception add evaluator, add suggestion (v1) 
 - validation retry in generic planner(v1) 
+
+- Raw LLM request - log
+- 4 times retry after success replan
+- review replanning history
+- only A.1 in context? why A.1.2.1 add even it failed
+- 0.9 still rerun
