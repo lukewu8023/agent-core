@@ -86,11 +86,10 @@ def main():
     agent.enable_evaluators()
 
     task = "Find the specifics root cause and get more detail about why the event id: 10000 in IE component failed?"
-    agent.execute(task)
+    execution_result = agent.execute(task)
 
     execution_history = agent.execution_history
     print(f"Execution History: {execution_history.execution_history_to_str()}")
-    execution_result = agent.get_execution_result_summary()
     print(f"Execution Result: {execution_result}")
 
 

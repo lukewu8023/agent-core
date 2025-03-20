@@ -17,17 +17,17 @@ output
 - enrich llm related log (llm input/output/prompt)(done need test)
 - centrilize output structure(done need test)
 tracing findings
-- Need to add execution result in **Plan & Execution (Each node with execution results, if executed)** in success replan
-- Need all executed results in **Plan & Execution (Each node with execution results, if executed)** in success replan
-- Need to add all failed execution in **Failed History** in agent execution
-- Wrong failure reason
-**Failure Reason**
-0.85
-- review **Execution History**
-(Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.)
-- where this is from
-INFO:Agent:Generating execution result summary.
-
+- Need to add execution result in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
+- Need all executed results in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
+- Need to add all failed execution in **Failed History** in agent execution (done)
+- Wrong failure reason - **Failure Reason** 0.85 (done, change to suggestion)
+- review **Execution History** (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.) (done, deleted)
+- where this is from  INFO:Agent:Generating execution result summary. (done, get_execution_result_summary, because invoked summary method)
+- tool args in steps (done)
+- output summary used llm(add in steps) (done)
+- input/output token (done)
+- debug for steps
+- 
 bug
 - return json has "/" will cause crash
 langgragh

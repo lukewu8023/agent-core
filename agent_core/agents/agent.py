@@ -11,16 +11,7 @@ from agent_core.utils.context_manager import ContextManager
 from agent_core.evaluators.evaluators import get_evaluator
 from agent_core.evaluators import BaseEvaluator
 
-
-class Agent(AgentBasic):
-    """
-    The Agent coordinates task execution with or without a Planner.
-    It now exposes two prompts:
-      - execute_prompt: overrides how we generate the no-planner prompt
-      - summary_prompt (used in get_execution_result)
-    """
-
-    DEFAULT_EXECUTE_PROMPT = """
+DEFAULT_EXECUTE_PROMPT = """
 {context_section}
 
 **Background**
@@ -28,9 +19,9 @@ class Agent(AgentBasic):
 
 **Task**
 {task}
-    """
+"""
 
-    DEFAULT_SUMMARY_PROMPT = """
+DEFAULT_SUMMARY_PROMPT = """
 You are an assistant summarizing the outcome of a multi-step plan execution.
 Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
 
@@ -46,9 +37,9 @@ Below is the complete step-by-step execution history. Provide a well-structured 
 
 **Important**
 - Ensure your response is valid JSON without any additional text or comments (// explain).
-    """
+"""
 
-    DEFAULT_FINAL_RESPONSE_PROMPT = """
+DEFAULT_FINAL_RESPONSE_PROMPT = """
 You are an assistant to response user's query.
 Given user'query and step-by-step result of execution history. 
 Generate the final response to user. The final answer usually in the last step.
@@ -60,8 +51,16 @@ Generate the final response to user. The final answer usually in the last step.
 {history_text}
 
 Response:
-    """
+"""
 
+
+class Agent(AgentBasic):
+    """
+    The Agent coordinates task execution with or without a Planner.
+    It now exposes two prompts:
+      - execute_prompt: overrides how we generate the no-planner prompt
+      - summary_prompt (used in get_execution_result)
+    """
     def __init__(
         self, model_name: Optional[str] = None, log_level: Optional[str] = None
     ):
@@ -87,9 +86,9 @@ Response:
         self.context = ContextManager()
 
         # Prompt strings for direct (no-planner) usage and summary
-        self.execute_prompt = self.DEFAULT_EXECUTE_PROMPT
-        self.summary_prompt = self.DEFAULT_SUMMARY_PROMPT
-        self.response_prompt = self.DEFAULT_FINAL_RESPONSE_PROMPT
+        self.execute_prompt = DEFAULT_EXECUTE_PROMPT
+        self.summary_prompt = DEFAULT_SUMMARY_PROMPT
+        self.response_prompt = DEFAULT_FINAL_RESPONSE_PROMPT
 
         # NEW: evaluator management
         self.evaluators_enabled = False
@@ -128,8 +127,9 @@ Response:
             evaluators_enabled=self.evaluators_enabled,
             evaluators=self.evaluators,
         )
-        self._execution_history.token = self.get_token()
-        return self._execution_history.get_last_step_output()
+        agent_result = self.get_execution_result_summary()
+        self.get_token()
+        return agent_result
 
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
@@ -151,7 +151,9 @@ Response:
         return response
 
     def get_token(self):
-        return ModelRegistry.get_token()
+        input_tokens, output_tokens = ModelRegistry.get_token()
+        self._execution_history.input_tokens = input_tokens
+        self._execution_history.output_tokens = output_tokens
 
     def get_final_response(self, task: str) -> str:
         history_text = self._execution_history.execution_history_to_str()
@@ -179,7 +181,8 @@ Response:
         self.logger.info("Generating execution result summary.")
         summary_response = self._model.process(final_prompt)
         cleaned = summary_response.replace("```json", "").replace("```", "").strip()
-        return str(cleaned)
+        self._execution_history.summary = cleaned
+        return cleaned
 
     def planner(self, planner):
         if not issubclass(planner.__class__, BasePlanner):

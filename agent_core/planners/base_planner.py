@@ -7,23 +7,7 @@ from agent_core.agent_basic import AgentBasic
 from agent_core.entities.steps import Steps
 
 
-def tool_knowledge_format(tools: Optional[List[BaseTool]]) -> str:
-    tools_knowledge_list = []
-    if tools is not None:
-        tools_knowledge_list = [
-            str(tool.args_schema.model_json_schema()) for tool in tools
-        ]
-    tools_knowledge = "\n".join(tools_knowledge_list)
-    return tools_knowledge
-
-
-class BasePlanner(AgentBasic):
-    """
-    An abstract base class for all planners.
-    Both GenericPlanner and GraphPlanner will inherit from this.
-    """
-
-    DEFAULT_PROMPT = """ 
+DEFAULT_PROMPT = """ 
 Given the following task and the tools, generate a high-level plan by breaking it down into meaningful, actionable steps.
 
 **Instructions for generating 'use_tool'**
@@ -62,6 +46,23 @@ If the **Tools** section contains tools, set "use_tool" to true when a tool is n
 Ensure your response is valid JSON, without any additional text or comments.
 
 **Steps:**
+"""
+
+
+def tool_knowledge_format(tools: Optional[List[BaseTool]]) -> str:
+    tools_knowledge_list = []
+    if tools is not None:
+        tools_knowledge_list = [
+            str(tool.args_schema.model_json_schema()) for tool in tools
+        ]
+    tools_knowledge = "\n".join(tools_knowledge_list)
+    return tools_knowledge
+
+
+class BasePlanner(AgentBasic):
+    """
+    An abstract base class for all planners.
+    Both GenericPlanner and GraphPlanner will inherit from this.
     """
 
     def __init__(
@@ -73,7 +74,7 @@ Ensure your response is valid JSON, without any additional text or comments.
         'prompt' can override the default prompt template.
         """
         super().__init__(self.__class__.__name__, model_name, log_level)
-        self.prompt = self.DEFAULT_PROMPT
+        self.prompt = DEFAULT_PROMPT
 
     @abstractmethod
     def plan(

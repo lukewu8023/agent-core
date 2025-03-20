@@ -50,11 +50,13 @@ class ModelRegistry:
         return cls._models.get(name)
 
     @classmethod
-    def get_token(cls) -> int:
-        token = 0
+    def get_token(cls) -> (int, int):
+        input_tokens = 0
+        output_tokens = 0
         for name, model in cls._models.items():
-            token = token + model.token
-        return token
+            input_tokens = input_tokens + model.input_tokens
+            output_tokens = output_tokens + model.output_tokens
+        return input_tokens, output_tokens
 
     @classmethod
     def load_models(cls, log_level: str = None):

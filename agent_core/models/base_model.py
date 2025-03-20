@@ -9,9 +9,10 @@ Environment()
 
 class BaseModel(ABC):
 
-    def __init__(self, token: int = 0):
+    def __init__(self, input_tokens: int = 0, output_tokens: int = 0):
         self.name = self.name()
-        self.token = token
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
         self.logger = get_logger(self.__class__.__name__)
 
     def process(self, request: str) -> (str, int):
@@ -31,4 +32,5 @@ class BaseModel(ABC):
     def add_token(self, response):
         if (hasattr(response, "usage_metadata")
                 and 'total_tokens' in response.usage_metadata):
-            self.token = self.token + response.usage_metadata['total_tokens']
+            self.output_tokens = self.output_tokens + response.usage_metadata['output_tokens']
+            self.input_tokens = self.input_tokens + response.usage_metadata['input_tokens']

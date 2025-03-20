@@ -1,14 +1,10 @@
 # evaluator/generic_evaluator.py
 
-import json
 from typing import Optional
 from .base_evaluator import BaseEvaluator, parse_scored_evaluation_response
 from .entities.evaluator_result import EvaluatorResult
 
-
-class GenericEvaluator(BaseEvaluator):
-
-    DEFAULT_PROMPT = """
+DEFAULT_PROMPT = """
 You are an expert evaluator of AI-generated outputs. Evaluate the provided subtask output based on the following criteria:
 - Each criterion is scored on a scale of 1 to 5 (1=very poor, 5=excellent). 
 - For each criterion provide a short justification.
@@ -63,7 +59,10 @@ Do not include any extra keys or text outside this JSON.
 {response}
 
 **Evaluation of current step:**
-    """
+"""
+
+
+class GenericEvaluator(BaseEvaluator):
 
     def __init__(
         self,
@@ -106,4 +105,4 @@ Do not include any extra keys or text outside this JSON.
         )
 
     def default_prompt(self):
-        return self.DEFAULT_PROMPT
+        return DEFAULT_PROMPT

@@ -7,39 +7,39 @@ from ..entities.steps import Steps, Step
 from ..evaluators import BaseEvaluator
 from ..utils.context_manager import ContextManager
 
+EXAMPLE_JSON1 = """{
+    "steps": [
+        {
+            "name": "Prepare eggs",
+            "description": "Get the eggs from the fridge and put them on the table.",
+            "use_tool": true,
+            "tool_name": "Event",
+            "category": "action",
+            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
+        },
+        ...
+    ]
+}"""
+
+EXAMPLE_JSON2 = """{
+    "steps": [
+        {
+            "name": "Plan code structure",
+            "description": "Outline the classes and methods.",
+            "use_tool": false,
+            "category": "coding",
+            "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
+        },
+        ...
+    ]
+}"""
+
 
 class GenericPlanner(BasePlanner):
     """
     A simple planner that calls the model to break a task into JSON steps.
     Each step may optionally specify a category, used for specialized evaluation.
     """
-
-    EXAMPLE_JSON1 = """{
-        "steps": [
-            {
-                "name": "Prepare eggs",
-                "description": "Get the eggs from the fridge and put them on the table.",
-                "use_tool": true,
-                "tool_name": "Event",
-                "category": "action",
-                "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
-            },
-            ...
-        ]
-    }"""
-
-    EXAMPLE_JSON2 = """{
-        "steps": [
-            {
-                "name": "Plan code structure",
-                "description": "Outline the classes and methods.",
-                "use_tool": false,
-                "category": "coding",
-                "evaluation_threshold": 0.9 // define threshold for evaluation process, 0.0 to 1.0, more complex task more lower threshold
-            },
-            ...
-        ]
-    }"""
 
     def __init__(self, model_name: str = None, log_level: Optional[str] = None):
         """
@@ -71,8 +71,8 @@ class GenericPlanner(BasePlanner):
             background=background,
             task=task,
             tools_knowledge=tools_knowledge,
-            example_json1=self.EXAMPLE_JSON1,
-            example_json2=self.EXAMPLE_JSON2,
+            example_json1=EXAMPLE_JSON1,
+            example_json2=EXAMPLE_JSON2,
             categories_str=categories_str,
         )
 

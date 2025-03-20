@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import field
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 
@@ -13,6 +13,7 @@ class Step(BaseModel):
     result: Optional[str] = ""
     use_tool: Optional[bool] = False
     tool_name: Optional[str] = None
+    tool_args: Optional[Any] = None
     category: Optional[str] = "default"
     retries: Optional[List[Step]] = field(default_factory=list)
     evaluator_result: Optional[EvaluatorResult] = None
@@ -51,6 +52,9 @@ class Steps(BaseModel):
 
     steps: List[Step] = field(default_factory=list)
     token: int = 0
+    summary: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
 
     def __str__(self):
         return self.execution_history_to_str()

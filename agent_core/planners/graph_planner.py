@@ -100,7 +100,6 @@ Below are the details:
 
 **Execution History**
 {execution_history}
-(Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.)
 
 **Failure Reason**
 {failure_reason}
@@ -284,7 +283,10 @@ class PlanGraph:
     def summarize_plan(self) -> str:
         summary = ""
         for n in self.nodes.values():
-            summary += f"Node {n.name}: {n.description}, Next: {n.next_node}\n"
+            summary += f"Node {n.name}: {n.description}, "
+            if n.result:
+                summary += f"Node {n.name} Result {n.result}, "
+            summary += f"Next Node: {n.next_node}\n"
         return summary
 
 
@@ -475,7 +477,7 @@ class GraphPlanner(BasePlanner):
                         task,
                         background,
                         evaluators,
-                        retry_steps[-1],
+                        retry_steps,
                     )
                     evaluator_result = attempt_step.evaluator_result
                     if pass_threshold(
@@ -535,7 +537,7 @@ class GraphPlanner(BasePlanner):
         return execution_history
 
     def execute(
-            self, node, evaluators_enabled, task, background, evaluators, failure_step
+            self, node, evaluators_enabled, task, background, evaluators, failure_step: List[Step]
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -558,6 +560,7 @@ class GraphPlanner(BasePlanner):
         # Keep the raw response in node's execution_results for reference
         # node.execution_results.append(step.result)
         execution_history.add_step(step)
+        node.result = step.result
         # Post-success replan check
         # We'll see if we want to add or replace future steps on the fly.
         self._success_replan(self.plan_graph, node)
@@ -570,7 +573,7 @@ class GraphPlanner(BasePlanner):
             task: str,
             background: str,
             step: Step,
-            failure_step: Step,
+            failure_step: List[Step],
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
@@ -578,7 +581,9 @@ class GraphPlanner(BasePlanner):
         self.logger.info(f"Executing Node {node.name} Attempt {node.current_attempts + 1}: {node.description}")
         failure_info = ""
         if failure_step:
-            failure_info = f"Result : {failure_step.result}, Result Suggestion: {failure_step.evaluator_result.suggestion}"
+            for f_step in failure_step:
+                failure_info = (failure_info +
+                                f"Result : {f_step.result}, Result Suggestion: {f_step.evaluator_result.suggestion}\n")
         node.current_attempts += 1
 
         tool_description = ""
@@ -614,6 +619,7 @@ class GraphPlanner(BasePlanner):
             if data.use_tool:
                 if node.tool is not None:
                     try:
+                        step.tool_args = data.tool_arguments
                         tool_response = node.tool.invoke(data.tool_arguments)
                         response = (
                             f"""
@@ -674,7 +680,7 @@ tool response : {tool_response}
         pg = self.plan_graph
         return {
             "failure_reason": (
-                current_failed.evaluator_result.score if current_failed else ""
+                current_failed.evaluator_result.suggestion if current_failed else ""
             ),
             "execution_history": execute_history.get_info(),
             "replan_history": pg.replan_history,
