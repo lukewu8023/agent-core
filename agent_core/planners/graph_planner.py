@@ -69,8 +69,8 @@ If task use tool is false, example:
 3. Do not include comments, explanations, or extra text outside the JSON block.
 4. Ensure that all strings are properly enclosed in double quotes (").
 5. Escape only necessary special characters:
-   - Newlines as `\n`
-   - Double quotes inside strings as `\"`
+   - Newlines as `\\n`
+   - Double quotes inside strings as `\\"`
    - Backslashes as `\\`
 6. Do NOT include extra escape sequences (e.g., avoid `\\\\` where `\\` is enough).
 7. The response must not contain trailing commas or missing brackets.

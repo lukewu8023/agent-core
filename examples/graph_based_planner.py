@@ -19,9 +19,7 @@ def main():
     agent.enable_evaluators()
 
     task = "3 steps draw a digital dragon using computer emoji characters."
-    agent.execute(task)
-
-    execution_result = agent.get_execution_result_summary()
+    execution_result = agent.execute(task)
     print(f"Execution Result: {execution_result}")
 
 

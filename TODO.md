@@ -26,7 +26,7 @@ tracing findings
 - tool args in steps (done)
 - output summary used llm(add in steps) (done)
 - input/output token (done)
-- debug for steps
+- debug for steps 
 - 
 bug
 - return json has "/" will cause crash
