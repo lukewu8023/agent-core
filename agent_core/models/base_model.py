@@ -30,7 +30,6 @@ class BaseModel(ABC):
         pass
 
     def add_token(self, response):
-        if (hasattr(response, "usage_metadata")
-                and 'total_tokens' in response.usage_metadata):
+        if hasattr(response, "usage_metadata"):
             self.output_tokens = self.output_tokens + response.usage_metadata['output_tokens']
             self.input_tokens = self.input_tokens + response.usage_metadata['input_tokens']
