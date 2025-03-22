@@ -1,6 +1,5 @@
 # planners/graph_planner.py
 
-import logging
 from agent_core.evaluators import BaseEvaluator
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 from pydantic import BaseModel
@@ -96,19 +95,19 @@ Below are the details:
 {root_task}
 
 **Current Plan**
-{plan_summary}
+{execution_plan}
 
 **Execution History**
 {execution_history}
 
-**Failure Reason**
+**Current Node Name**
+{current_node_name}
+
+**Current Node Execution Failure Reason**
 {failure_reason}
 
 **Replanning History**
 {replan_history}
-
-**Current Node Name**
-{current_node_name}
 
 **Instructions**
 - Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
@@ -168,11 +167,14 @@ You are an intelligent planner reviewing a plan after the successful execution o
 **Root Task**
 {root_task}
 
-**Plan & Execution (Each node with execution results, if executed)**
-{plan_summary}
-
 **Current Node Name**
 {current_node_name}
+
+**Executed Plan (Each node with execution results, if executed)**
+{executed_plan}
+
+**Remaining Plan**
+{remaining_plan}
 
 **Instructions**
 Decide between:
@@ -289,6 +291,34 @@ class PlanGraph:
             summary += f"Next Node: {n.next_node}\n"
         return summary
 
+    def execution_plan(self) -> str:
+        execution_plan = ""
+        for n in self.nodes.values():
+            execution_plan += f"Node {n.name}: {n.description}, "
+            execution_plan += f"Next Node: {n.next_node}\n"
+        return execution_plan
+
+    def executed_plan(self) -> str:
+        executed_plan = ""
+        for n in self.nodes.values():
+            executed_plan += f"Node {n.name}: {n.description}, "
+            if n.result:
+                executed_plan += f"Node {n.name} Result {n.result}, "
+                executed_plan += f"Next Node: {n.next_node}\n"
+            else:
+                break
+        return executed_plan
+
+    def remaining_plan(self) -> str:
+        remaining_plan = ""
+        for n in self.nodes.values():
+            if n.result:
+                continue
+            else:
+                remaining_plan += f"Node {n.name}: {n.description}, "
+                remaining_plan += f"Next Node: {n.next_node}\n"
+        return remaining_plan
+
 
 @dataclass
 class Adjustments(BaseModel):
@@ -364,12 +394,12 @@ class GraphPlanner(BasePlanner):
         self._execute_prompt = value
 
     def plan(
-            self,
-            task: str,
-            tools: Optional[List[BaseTool]],
-            knowledge: str = "",
-            background: str = "",
-            categories: Optional[List[str]] = None,
+        self,
+        task: str,
+        tools: Optional[List[BaseTool]],
+        knowledge: str = "",
+        background: str = "",
+        categories: Optional[List[str]] = None,
     ) -> Steps:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
@@ -429,13 +459,13 @@ class GraphPlanner(BasePlanner):
         return plan
 
     def execute_plan(
-            self,
-            plan: Steps,
-            task: str,
-            evaluators_enabled: bool,
-            evaluators: dict,
-            context_manager: ContextManager = ContextManager(),
-            background: str = "",
+        self,
+        plan: Steps,
+        task: str,
+        evaluators_enabled: bool,
+        evaluators: dict,
+        context_manager: ContextManager = ContextManager(),
+        background: str = "",
     ):
         """
         Executes the PlanGraph node by node.
@@ -463,8 +493,12 @@ class GraphPlanner(BasePlanner):
                 node, evaluators_enabled, task, background, evaluators, None
             )
             if pass_threshold(
-                    step.evaluator_result.score, node.evaluation_threshold, threshold
+                step.evaluator_result.score, node.evaluation_threshold, threshold
             ):
+                if node.evaluation_threshold:
+                    self.logger.info(
+                        f"Actual Node Threadhold: {node.evaluation_threshold}, Decision: Accept Output"
+                    )
                 self.success_result(node, execution_history, step)
                 continue
             else:
@@ -481,8 +515,12 @@ class GraphPlanner(BasePlanner):
                     )
                     evaluator_result = attempt_step.evaluator_result
                     if pass_threshold(
-                            evaluator_result.score, node.evaluation_threshold, threshold
+                        evaluator_result.score, node.evaluation_threshold, threshold
                     ):
+                        if node.evaluation_threshold:
+                            self.logger.info(
+                                f"Actual Node Threadhold: {node.evaluation_threshold}, Decision: Accept Output"
+                            )
                         attempt_step.retries = retry_steps
                         retry = False
                     else:
@@ -533,11 +571,17 @@ class GraphPlanner(BasePlanner):
                             "Could not parse LLM response for replan, aborting."
                         )
                         break
-        logging.info("Task execution completed using GraphPlanner")
+        self.logger.info("Task execution completed using GraphPlanner")
         return execution_history
 
     def execute(
-            self, node, evaluators_enabled, task, background, evaluators, failure_step: List[Step]
+        self,
+        node,
+        evaluators_enabled,
+        task,
+        background,
+        evaluators,
+        failure_step: List[Step],
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -567,23 +611,27 @@ class GraphPlanner(BasePlanner):
         self.plan_graph.current_node_name = node.next_node
 
     def _execute_node(
-            self,
-            node: Node,
-            model_name: str,
-            task: str,
-            background: str,
-            step: Step,
-            failure_step: List[Step],
+        self,
+        node: Node,
+        model_name: str,
+        task: str,
+        background: str,
+        step: Step,
+        failure_step: List[Step],
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
         """
-        self.logger.info(f"Executing Node {node.name} Attempt {node.current_attempts + 1}: {node.description}")
+        self.logger.info(
+            f"Executing Node {node.name} Attempt {node.current_attempts + 1}: {node.description}"
+        )
         failure_info = ""
         if failure_step:
             for f_step in failure_step:
-                failure_info = (failure_info +
-                                f"Result : {f_step.result}, Result Suggestion: {f_step.evaluator_result.suggestion}\n")
+                failure_info = (
+                    failure_info
+                    + f"Result : {f_step.result}, Result Suggestion: {f_step.evaluator_result.suggestion}\n"
+                )
         node.current_attempts += 1
 
         tool_description = ""
@@ -621,13 +669,11 @@ class GraphPlanner(BasePlanner):
                     try:
                         step.tool_args = data.tool_arguments
                         tool_response = node.tool.invoke(data.tool_arguments)
-                        response = (
-                            f"""
+                        response = f"""
 tool description: {tool_description}
 tool arguments: {data.tool_arguments} 
 tool response : {tool_response}
 """
-                        )
                     except Exception as e:
                         response = "Incorrect tool arguments and unexpected result when invoke the tool."
                 else:
@@ -642,13 +688,13 @@ tool response : {tool_response}
         return response
 
     def _evaluate_node(
-            self,
-            node: Node,
-            root_task: str,
-            result: str,
-            evaluators_enabled: bool,
-            evaluators: Dict[str, BaseEvaluator],
-            background: str,
+        self,
+        node: Node,
+        root_task: str,
+        result: str,
+        evaluators_enabled: bool,
+        evaluators: Dict[str, BaseEvaluator],
+        background: str,
     ) -> (EvaluatorResult, float):
         """
         evaluate the node output using agent's evaluator if enabled.
@@ -672,7 +718,7 @@ tool response : {tool_response}
         return evaluator_result, evaluator.evaluation_threshold
 
     def _prepare_failure_info(
-            self, execute_history: Steps, current_failed: Step
+        self, execute_history: Steps, current_failed: Step
     ) -> Dict:
         """
         Produce the context for replan prompt.
@@ -699,7 +745,8 @@ tool response : {tool_response}
             if plan_graph.categories
             else "(Not defined)"
         )
-        plan_summary = plan_graph.summarize_plan()
+        executed_plan = plan_graph.executed_plan()
+        remaining_plan = plan_graph.remaining_plan()
 
         # Build the final prompt
         final_prompt = self._success_replan_prompt.format(
@@ -708,7 +755,8 @@ tool response : {tool_response}
             tools_knowledge=plan_graph.tools,
             categories_str=categories_str,
             root_task=plan_graph.task,
-            plan_summary=plan_summary,
+            executed_plan=executed_plan,
+            remaining_plan=remaining_plan,
             current_node_name=node.name,
         )
 
@@ -723,6 +771,7 @@ tool response : {tool_response}
                 return
             elif adjustments.action == "replan":
                 self.logger.info("Replanning the un-executed steps after success...")
+                self.logger.info(f"New Steps: {cleaned}")
                 # 1) Remove all un-executed steps from this node onward.
                 #    This example removes any nodes listed in node.next_nodes, plus any "chain" from them.
                 to_remove = [node.next_node]  # immediate next(s)
@@ -770,7 +819,7 @@ tool response : {tool_response}
             )
 
     def _failure_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
-        plan_summary = plan_graph.summarize_plan()
+        execution_plan = plan_graph.execution_plan()
 
         final_prompt = plan_graph.prompt.format(
             background=plan_graph.background,
@@ -783,7 +832,7 @@ tool response : {tool_response}
                 if plan_graph.categories
                 else "(Not defined)"
             ),
-            plan_summary=plan_summary,
+            execution_plan=execution_plan,
             execution_history=failure_info["execution_history"],
             failure_reason=failure_info["failure_reason"],
             replan_history=failure_info["replan_history"],

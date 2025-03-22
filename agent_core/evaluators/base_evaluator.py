@@ -13,9 +13,7 @@ def parse_scored_evaluation_response(evaluation_threshold, evaluation_response: 
     Attempt to parse the JSON. If invalid, treat as "Rerun Subtask" with 0 score.
     """
     try:
-        cleaned = (
-            evaluation_response.replace("```json", "").replace("```", "").strip()
-        )
+        cleaned = evaluation_response.replace("```json", "").replace("```", "").strip()
         data = json.loads(cleaned)
         points = data.get("points", [])
 
@@ -30,7 +28,7 @@ def parse_scored_evaluation_response(evaluation_threshold, evaluation_response: 
         numeric_score = float(total_score) / 40.0
 
         # Final decision logic
-        if numeric_score > evaluation_threshold and not any_low_scores:
+        if numeric_score >= evaluation_threshold and not any_low_scores:
             recommendation = "Accept Output"
         else:
             recommendation = "Rerun Subtask"

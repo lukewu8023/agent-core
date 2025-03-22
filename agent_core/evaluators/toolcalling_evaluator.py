@@ -89,14 +89,14 @@ class ToolCallingEvaluator(BaseEvaluator):
 
         # parse the JSON
         decision, score, suggestion, details = parse_scored_evaluation_response(
-            self.evaluation_threshold,
-            evaluation_response
+            self.evaluation_threshold, evaluation_response
         )
 
         return EvaluatorResult(
             name=self.name,
             decision=decision,
             score=score,
+            evaluation_threshold=self.evaluation_threshold,
             suggestion=suggestion,
             details=details,
             prompt=prompt_text,

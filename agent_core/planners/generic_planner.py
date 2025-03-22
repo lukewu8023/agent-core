@@ -95,6 +95,7 @@ class GenericPlanner(BasePlanner):
             self.logger.error(f"Raw LLM response was: {cleaned}")
             raise ValueError("Invalid JSON format in planner response.")
         self.logger.info(f"Got {len(plan.steps)} steps from the LLM.")
+        self.logger.info(f"Plan: \n{plan}")
         return plan
 
     def execute_plan(

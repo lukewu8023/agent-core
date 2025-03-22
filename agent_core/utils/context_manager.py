@@ -47,7 +47,7 @@ class ContextManager:
         if not self.context:
             return context_str
         for key, value in self.context.items():
-            context_str += f"*{key}*\n{value}\n*{key}*\n"
+            context_str += f"*{key}*\n{value}\n"
         return context_str
     #
     # def context_to_str(self):

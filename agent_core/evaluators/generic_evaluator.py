@@ -91,13 +91,13 @@ class GenericEvaluator(BaseEvaluator):
 
         # parse the JSON
         decision, score, suggestion, details = parse_scored_evaluation_response(
-            self.evaluation_threshold,
-            evaluation_response
+            self.evaluation_threshold, evaluation_response
         )
 
         return EvaluatorResult(
             name=self.name,
             decision=decision,
+            evaluation_threshold=self.evaluation_threshold,
             score=score,
             suggestion=suggestion,
             details=details,
