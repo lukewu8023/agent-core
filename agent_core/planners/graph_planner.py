@@ -846,11 +846,11 @@ tool response : {tool_response}
                 self.logger.info(
                     "Successfully applied 'replan' modifications after success."
                 )
+                execution_history.adjust_plan(adjustments.action, self.plan_graph.to_plan())
             else:
                 self.logger.warning(
                     f"Unknown action '{adjustments.action}' in success replan. No changes made."
                 )
-            execution_history.adjust_plan(adjustments.action, plan_graph.to_plan())
         except Exception as e:
             self.logger.warning(
                 "Post-success replan response is not valid JSON. Skipping replan."
