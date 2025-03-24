@@ -1,4 +1,4 @@
-# examples/execution_summaries.py
+# examples/reasoning_trace.py
 
 import sys
 import os
@@ -20,11 +20,11 @@ def main():
     agent.enable_evaluators()
 
     task = "3 steps draw a digital phoenix using computer emoji characters."
-    agent.execute(task)
+    respose = agent.execute(task)
 
     execution_history = agent.execution_history
     reasoning = agent.get_execution_reasoning()
-    print(f"Reasoning History: {reasoning}")
+    print(f"Final Response: {respose}")
 
 
 if __name__ == "__main__":
