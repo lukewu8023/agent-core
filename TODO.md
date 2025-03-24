@@ -10,9 +10,12 @@
 - Final Step action change next to end (done)
 - implement a util to convert execution_trace to mermaid flowchat
 - Generic planner execute history
+- avoid dead loop
+- able to save execution history to a separate json file in log folder (in example code)
 
 ### bug
 - return json has "/" will cause crash
+- error is thrown if first step got retried 3 times and breakdown
 
 ### langgragh
 - visulizaiton follow langgragh diagram
