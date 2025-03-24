@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from langchain_core.tools import BaseTool
 from agent_core.utils.logger import get_logger
+from agent_core.executors.base_executor import BaseExecutor
 
 DEFAULT_EXECUTE_PROMPT = r"""
 Based on the below background, context and failed history, process the following current task, being mindful not to repeat or reintroduce errors from previous failed attempts, and respond with those suggestions:
@@ -202,7 +203,7 @@ When replanning:
     "rationale": "..." // explanation of your reasoning here
 }}
 ```
-(If “action” = “none”, leave “modifications” as empty arrays.)
+(If "action" = "none", leave "modifications" as empty arrays.)
 
 **Data Example**
 if no change on the plan:
@@ -232,7 +233,7 @@ or, if minimal replanning is necessary:
 
 **Important**
 - Ensure your response is valid JSON without any additional text or comments (// explain).
-- Default action should strongly favor “none”. Only replan if absolutely essential.
+- Default action should strongly favor "none". Only replan if absolutely essential.
 """
 
 
@@ -365,9 +366,23 @@ class GraphPlanner(BasePlanner):
         self.plan_graph: Optional[PlanGraph] = None
         self.context_manager = ContextManager()
 
+        # Prompts to configure for the executor
         self._execute_prompt = DEFAULT_EXECUTE_PROMPT
         self._failure_replan_prompt = DEFAULT_FAILURE_REPLAN_PROMPT
         self._success_replan_prompt = DEFAULT_SUCCESS_REPLAN_PROMPT
+
+        # Configure the executor with these prompts
+        self._configure_executor()
+
+    def _configure_executor(self):
+        """Configure the executor with GraphPlanner-specific settings"""
+        # Store prompts on the executor as attributes (if it supports it)
+        if hasattr(self.executor, "execute_prompt"):
+            self.executor.execute_prompt = self._execute_prompt
+        if hasattr(self.executor, "failure_replan_prompt"):
+            self.executor.failure_replan_prompt = self._failure_replan_prompt
+        if hasattr(self.executor, "success_replan_prompt"):
+            self.executor.success_replan_prompt = self._success_replan_prompt
 
     @property
     def failure_replan_prompt(self) -> str:
@@ -376,6 +391,8 @@ class GraphPlanner(BasePlanner):
     @failure_replan_prompt.setter
     def failure_replan_prompt(self, value: str):
         self._failure_replan_prompt = value
+        if hasattr(self.executor, "failure_replan_prompt"):
+            self.executor.failure_replan_prompt = value
 
     @property
     def success_replan_prompt(self) -> str:
@@ -384,6 +401,8 @@ class GraphPlanner(BasePlanner):
     @success_replan_prompt.setter
     def success_replan_prompt(self, value: str):
         self._success_replan_prompt = value
+        if hasattr(self.executor, "success_replan_prompt"):
+            self.executor.success_replan_prompt = value
 
     @property
     def execute_prompt(self) -> str:
@@ -392,6 +411,8 @@ class GraphPlanner(BasePlanner):
     @execute_prompt.setter
     def execute_prompt(self, value: str):
         self._execute_prompt = value
+        if hasattr(self.executor, "execute_prompt"):
+            self.executor.execute_prompt = value
 
     def plan(
         self,
@@ -489,6 +510,11 @@ class GraphPlanner(BasePlanner):
                 )
                 break
             node = pg.nodes[pg.current_node_name]
+            if reasoning_history is not None:
+                reasoning_history.append(
+                    f"Now executing node {node.name}: {node.description}"
+                )
+
             step, threshold = self.execute(
                 node, evaluators_enabled, task, background, evaluators, None
             )
@@ -659,7 +685,10 @@ class GraphPlanner(BasePlanner):
             failure_info=failure_info,
         )
         step.prompt = final_prompt
-        response = ModelRegistry.get_model(model_name).process(final_prompt)
+
+        # Use executor instead of direct model call
+        response = self.executor.execute(final_prompt, model_name)
+
         cleaned = response.replace("```json", "").replace("```", "").strip()
 
         try:
