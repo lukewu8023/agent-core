@@ -144,34 +144,45 @@ class GenericPlanner(BasePlanner):
                 step.add_evaluator_result(evaluator_result)
                 self.logger.info(evaluator_result.to_log())
 
-                while (
-                    evaluator_result.score <= evaluator.evaluation_threshold
-                    and evaluator.max_attempt + 1 > attempt
-                ):
-                    self.logger.info(
-                        f"Executing Step {idx} Attempt {attempt}: {step.description}"
-                    )
-                    retry_step = Step(name=step.name, description=step.description)
-                    retry_prompt = f"""
-                        {final_prompt}\n
-                        **Failed Evaluate Response**
-                        {response} 
-                        **Evaluator**
-                        {evaluator_result.details}
-                        """
-                    retry_step.prompt = retry_prompt
-                    response = self.executor.execute(retry_prompt)
-                    retry_step.result = response
-                    evaluator_result = evaluator.evaluate(
-                        task, step.description, response, background, context_manager
-                    )
-                    retry_step.add_evaluator_result(evaluator_result)
-                    step.add_retry(retry_step)
-                    self.logger.info(
-                        f"Response for Rerun Step {idx} Failed Attempt {attempt}: {response}"
-                    )
-                    attempt = attempt + 1
+                if evaluator_result.score < evaluator.evaluation_threshold:
+                    execution_history.add_retry_step(step)
+                    retry = True
+                    retry_steps: List[Step] = [step]
+                    while retry and evaluator.max_attempts > attempt:
+                        self.logger.info(
+                            f"Executing Step {idx} Attempt {attempt}: {step.description}"
+                        )
+                        retry_step = Step(name=step.name, description=step.description)
+                        retry_prompt = f"""
+                                        {final_prompt}\n
+                                        **Failed Evaluate Response**
+                                        {response} 
+                                        **Evaluator**
+                                        {evaluator_result.details}
+                                        """
+                        retry_step.prompt = retry_prompt
+                        response = self.executor.execute(retry_prompt)
+                        retry_step.result = response
+                        evaluator_result = evaluator.evaluate(
+                            task, step.description, response, background, context_manager
+                        )
+                        retry_step.add_evaluator_result(evaluator_result)
 
+                        if evaluator_result.score < evaluator.evaluation_threshold:
+                            retry_step.retries = retry_steps
+                            step = retry_step
+                            retry = False
+                        else:
+                            execution_history.add_retry_step(retry_step)
+                            retry_steps.append(retry_step)
+                            retry = True
+                    if not retry:
+                        execution_history.add_success_step(step)
+                    else:
+                        execution_history.add_failure_step(step)
+                        break
+            else:
+                execution_history.add_success_step(step)
             if context_manager:
                 context_manager.add_context("Execution History", step.to_success_info())
             else:

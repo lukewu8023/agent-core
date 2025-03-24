@@ -88,6 +88,10 @@ class Steps(BaseModel):
         self.trace_steps.append(step)
         self.steps.append(step)
 
+    def add_failure_step(self, step: Step):
+        step.enrich_failure_step("failure", len(self.trace_plan))
+        self.trace_steps.append(step)
+
     def add_retry_step(self, step: Step):
         step.enrich_failure_step("retry", len(self.trace_plan))
         self.trace_steps.append(step)
