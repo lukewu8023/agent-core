@@ -10,6 +10,7 @@ from agent_core.planners.base_planner import BasePlanner
 from agent_core.utils.context_manager import ContextManager
 from agent_core.evaluators.evaluators import get_evaluator
 from agent_core.evaluators import BaseEvaluator
+from agent_core.utils.narrative_templates import EXECUTION_NARRATIVE_TEMPLATES
 
 DEFAULT_EXECUTE_PROMPT = """
 {context_section}
@@ -61,6 +62,7 @@ class Agent(AgentBasic):
       - execute_prompt: overrides how we generate the no-planner prompt
       - summary_prompt (used in get_execution_result)
     """
+
     def __init__(
         self, model_name: Optional[str] = None, log_level: Optional[str] = None
     ):
@@ -132,8 +134,71 @@ class Agent(AgentBasic):
         self.get_token()
         return agent_result
 
-    def get_reasoning(self):
-        return self._execution_history.trace_steps, self._execution_history.trace_plan
+    def get_execution_reasoning(self):
+        """
+        Generate a narrative describing the agent's reasoning process based on the execution history.
+        Extracts action types from trace_steps to create an explanatory narrative of the execution.
+
+        Returns:
+            tuple: (trace_steps, trace_plan) - The raw steps and plan for reference
+        """
+        reasoning_narrative = []
+
+        # Process each step in the trace to build the narrative
+        if (
+            hasattr(self._execution_history, "trace_steps")
+            and self._execution_history.trace_steps
+        ):
+            for step in self._execution_history.trace_steps:
+                narrative = self._get_reasoning_narrative(step)
+                reasoning_narrative.append(narrative)
+
+        # Join the narrative parts into a single string
+        reasoning_text = "\n".join(reasoning_narrative)
+
+        # Log the reasoning process
+        self.logger.info(f"Execution reasoning: {reasoning_text}")
+
+        # Return both the raw execution history and the narrative
+        return reasoning_text
+
+    def _get_reasoning_narrative(self, step):
+        """
+        Generate a narrative string for a given step based on its action.
+
+        Args:
+            step: A Step object containing action and other metadata
+
+        Returns:
+            str: A narrative description of the reasoning at this step
+        """
+
+        action = step.action
+        # Handle special cases with combined actions
+        if action.startswith("failure "):
+            if "breakdown" in action:
+                template_key = "failure breakdown"
+            elif "replan" in action:
+                template_key = "failure replan"
+            else:
+                template_key = "failure"
+        elif action.startswith("success "):
+            if "replan" in action:
+                template_key = "success replan"
+            elif "none" in action:
+                template_key = "success none"
+            else:
+                template_key = "success replan"  # default to replan
+        else:
+            template_key = action
+
+        # Use the appropriate template or a default one
+        template = EXECUTION_NARRATIVE_TEMPLATES.get(
+            template_key, "Taking step {step_name}."
+        )
+
+        # Format the template with step data
+        return template.format(step_name=step.name, step_description=step.description)
 
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
