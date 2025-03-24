@@ -1,53 +1,36 @@
 # TODO
 
-### Feature v1
-evaluator
-- data issue in one step due to check component after not able to pass generic validation (*)
-- evaluator for tool, only check valid arguments and signature (done need test)
-- evaluator output structure (done need test)
-threshold
-- Auto generate evaluation threashold (done need test)
-- unique threshold pass into calculation (done need test)
-replan
-- Auto generate missing step (especially new tool call) (done need test)
-output
-- reasoning and validation prompt in execute history(done need test)
-- final respose of the task(done need test)
-- print evaluator suggestion(done need test)                                                                                                                                                
-- enrich llm related log (llm input/output/prompt)(done need test)
-- centrilize output structure(done need test)
-tracing findings
-- Need to add execution result in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
-- Need all executed results in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
-- Need to add all failed execution in **Failed History** in agent execution (done)
-- Wrong failure reason - **Failure Reason** 0.85 (done, change to suggestion)
-- review **Execution History** (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.) (done, deleted)
-- where this is from  INFO:Agent:Generating execution result summary. (done, get_execution_result_summary, because invoked summary method)
-- tool args in steps (done)
-- output summary used llm(add in steps) (done)
-- input/output token (done)
-- debug for steps 
-- 
-bug
+## Feature v1
+## trace
+- refactor execution_trace structure
+- generate reasoing history real time based on execution_trace structure (*)
+- implement a util to convert execution_trace to mermaid flowchat
+
+### bug
 - return json has "/" will cause crash
-langgragh
+
+### langgragh
 - visulizaiton follow langgragh diagram
 
-### Feature v2
+## Feature v2
 - change context by step(v2)
-- enrich llm related log (llm input/output/prompt)(v2)
 - knowledge & background rag(v2)
-- support overwrite validation max attempt and threshold(v2)
 - knowledge graph to collect sufficient information(v2)
-- execution loop control(v2)
-- minimize context based on data?
+- human in the loop(v2)
+- minimize context based on data(v2)
 
-### Test
+### Review
+- review **Plan & Execution (Each node with execution results, if executed)** in success replan
+- review **Failed History** in agent execution
+- review **Failure Reason**
+- review **Execution History**
+
+## Test
 - more unit testing
 - test replan (breakdown done)
 - test retry with same result
 
-### Log & Doc
+## Log & Doc
 - better describe the 3 ways to define plan
 - add trace example for replan and validation
 - read me for each example
@@ -88,3 +71,27 @@ langgragh
 - review replanning history
 - only A.1 in context? why A.1.2.1 add even it failed
 - 0.9 still rerun
+- data issue in one step due to check component after not able to pass generic validation (done with only check tool calling not content)
+- evaluator for tool, only check valid arguments and signature (done need test)
+- evaluator output structure (done need test)
+- Auto generate evaluation threashold (done need test)
+- unique threshold pass into calculation (done need test)
+- Auto generate missing step (especially new tool call) (done need test)
+- reasoning and validation prompt in execute history(done need test)
+- final response of the task(done need test)
+- print evaluator suggestion(done need test)
+- enrich llm related log (llm input/output/prompt)(done need test)
+- centrilize output structure(done need test)
+- enrich llm related log (llm input/output/prompt)
+- execution loop control
+- support overwrite validation max attempt and threshold
+- debug for steps 
+- input/output token (done)
+- tool args in steps (done)
+- output summary used llm(add in steps) (done)
+- where this is from  INFO:Agent:Generating execution result summary. (done, get_execution_result_summary, because invoked summary method)
+- Need to add execution result in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
+- Need all executed results in **Plan & Execution (Each node with execution results, if executed)** in success replan (done)
+- Need to add all failed execution in **Failed History** in agent execution (done)
+- Wrong failure reason - **Failure Reason** 0.85 (done, change to suggestion)
+- review **Execution History** (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.) (done, deleted)
