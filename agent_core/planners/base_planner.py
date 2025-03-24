@@ -130,7 +130,7 @@ class BasePlanner(AgentBasic):
         knowledge: str = "",
         background: str = "",
         categories: Optional[List[str]] = None,
-    ) -> Steps:
+    ):
         """
         Generates a plan (list of Steps, or node-based structure, etc.) from the LLM.
         """

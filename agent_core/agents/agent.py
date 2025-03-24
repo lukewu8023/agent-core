@@ -117,7 +117,7 @@ class Agent(AgentBasic):
             background=self.background,
             categories=current_categories,
         )
-        self._execution_history.add_plan(plan.steps)
+        self._execution_history.add_plan(plan)
         # Now just call planner's execute_plan(...) in a unified way
         self.planner.execute_plan(
             task=task,

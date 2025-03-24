@@ -181,7 +181,7 @@ Decide between:
 2. Replan (action = "replan") only if there's a clear gap or something essential missing in the upcoming steps (for example, need to retrieve required information from a tool, then add a step of the tool calling)
 
 When replanning:
-- Modify only the future (unexecuted) steps.
+- Modify only the future (un-executed) steps in the remaining Plan.
 - Name new nodes following the hierarchy (e.g., current `B` → new sub `B.1`).
 - Keep additions minimal and targeted; aim for simplicity.
 
@@ -278,7 +278,7 @@ class PlanGraph:
         if self.start_node_name is None:
             self.start_node_name = node.name
 
-    def to_plan(self) -> List[Step]:
+    def to_plan(self) -> List[Node]:
         plan = list()
         process_node_name = self.start_node_name
         while process_node_name and process_node_name != "":
@@ -430,7 +430,7 @@ class GraphPlanner(BasePlanner):
         knowledge: str = "",
         background: str = "",
         categories: Optional[List[str]] = None,
-    ) -> Steps:
+    ) -> List[Node]:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
         2) Convert those Steps into a PlanGraph with Node objects.
@@ -464,9 +464,9 @@ class GraphPlanner(BasePlanner):
         if tools is not None:
             tool_map = {tool.name: tool for tool in tools}
 
-        for idx, step in enumerate(plan.steps, start=1):
+        for idx, step in enumerate(plan, start=1):
             node_name = chr(65 + idx - 1)  # e.g., A, B, C...
-            next_node_name = chr(65 + idx) if idx < len(plan.steps) else ""
+            next_node_name = chr(65 + idx) if idx < len(plan) else ""
 
             if step.tool_name and tool_map:
                 tool = tool_map.get(step.tool_name)
@@ -486,11 +486,11 @@ class GraphPlanner(BasePlanner):
             previous_node = node
 
         self.plan_graph = plan_graph
-        return plan
+        return self.plan_graph.to_plan()
 
     def execute_plan(
         self,
-        plan: Steps,
+        plan: List[Step],
         task: str,
         execution_history: Steps,
         evaluators_enabled: bool,
@@ -606,7 +606,6 @@ class GraphPlanner(BasePlanner):
                         )
                         break
         self.logger.info("Task execution completed using GraphPlanner")
-        return execution_history
 
     def execute(
         self,
@@ -846,7 +845,7 @@ tool response : {tool_response}
                 self.logger.info(
                     "Successfully applied 'replan' modifications after success."
                 )
-                execution_history.adjust_plan(adjustments.action, self.plan_graph.to_plan())
+                execution_history.adjust_plan(f"success {adjustments.action}", self.plan_graph.to_plan(), adjustments)
             else:
                 self.logger.warning(
                     f"Unknown action '{adjustments.action}' in success replan. No changes made."
@@ -967,4 +966,4 @@ tool response : {tool_response}
 
         else:
             self.logger.warning(f"Unknown action in adjustments: {adjustments.action}")
-        execution_history.adjust_plan(adjustments.action, self.plan_graph.to_plan())
+        execution_history.adjust_plan(f"failure {adjustments.action}", self.plan_graph.to_plan(), adjustments)

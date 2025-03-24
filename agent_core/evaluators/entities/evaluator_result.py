@@ -12,7 +12,7 @@ class EvaluatorResult(BaseModel):
     name: str = Field("generic")
     decision: str = Field("Accept Output")
     score: float = Field(1.0)
-    evaluation_threshold: float
+    evaluation_threshold: float = Field(0.9)
     suggestion: str = Field("")
     details: str | list | dict = Field("")
     prompt: str = Field("")

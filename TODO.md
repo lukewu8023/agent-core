@@ -2,9 +2,14 @@
 
 ## Feature v1
 ## trace
-- refactor execution_trace structure
-- generate reasoing history real time based on execution_trace structure (*)
+- graph first step to node (done)
+- plan add adj (done)
+- replan divided success and false (done)
+- DEFAULT_SUCCESS_REPLAN_PROMPT 184 plan enhancement (done)
+- SUCCESS PLAN current_attempts not 0 (done, no need fix, current_attempts will change base on process)
+- Final Step action change next to end (done)
 - implement a util to convert execution_trace to mermaid flowchat
+- Generic planner execute history
 
 ### bug
 - return json has "/" will cause crash
@@ -95,3 +100,5 @@
 - Need to add all failed execution in **Failed History** in agent execution (done)
 - Wrong failure reason - **Failure Reason** 0.85 (done, change to suggestion)
 - review **Execution History** (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.) (done, deleted)
+- refactor execution_trace structure (done)
+- generate reasoing history real time based on execution_trace structure (*) (done)

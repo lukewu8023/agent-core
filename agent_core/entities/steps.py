@@ -61,6 +61,12 @@ class Step(BaseModel):
         }
 
 
+class TracePlan(BaseModel):
+
+    plan: List[Step]
+    adjustment: Optional[Any] = None
+
+
 class Steps(BaseModel):
 
     steps: List[Step] = field(default_factory=list)
@@ -68,13 +74,17 @@ class Steps(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     trace_steps: List[Step] = field(default_factory=list)
-    trace_plan: Dict[int, List[Step]] = field(default_factory=dict)
+    trace_plan: Dict[int, TracePlan] = field(default_factory=dict)
 
     def __str__(self):
         return self.execution_history_to_str()
 
     def add_success_step(self, step: Step):
         step.enrich_success_step(len(self.trace_plan))
+        trace_plan = self.trace_plan[step.plan_name]
+        final_step = trace_plan.plan[-1]
+        if final_step.name == step.name:
+            step.action = "end"
         self.trace_steps.append(step)
         self.steps.append(step)
 
@@ -82,16 +92,18 @@ class Steps(BaseModel):
         step.enrich_failure_step("retry", len(self.trace_plan))
         self.trace_steps.append(step)
 
-    def adjust_plan(self, action, plan: List[Step]):
+    def adjust_plan(self, action, plan: List[Step], adjustment):
         index = len(self.trace_plan) + 1
-        self.trace_plan[index] = plan
+        trace_plan = TracePlan(plan=plan, adjustment=adjustment)
+        self.trace_plan[index] = trace_plan
         if self.trace_steps and len(self.trace_steps) > 0:
             final_step = self.trace_steps[-1]
             final_step.action = action
 
     def add_plan(self, plan: List[Step]):
         index = len(self.trace_plan) + 1
-        self.trace_plan[index] = plan
+        trace_plan = TracePlan(plan=plan)
+        self.trace_plan[index] = trace_plan
 
     def get_info(self):
         return [step.to_dict() for step in self.steps]

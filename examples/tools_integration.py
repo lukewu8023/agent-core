@@ -88,8 +88,7 @@ def main():
     task = "Find the specifics root cause and get more detail about why the event id: 10000 in IE component failed?"
     execution_result = agent.execute(task)
 
-    execution_history = agent.execution_history
-    print(f"Execution History: {execution_history.execution_history_to_str()}")
+    print(f"Reasoning : {agent.get_reasoning()}")
     print(f"Execution Result: {execution_result}")
 
 

@@ -20,6 +20,7 @@ def main():
 
     task = "3 steps draw a digital dragon using computer emoji characters."
     execution_result = agent.execute(task)
+    agent.get_reasoning()
     print(f"Execution Result: {execution_result}")
 
 

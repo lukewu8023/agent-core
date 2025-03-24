@@ -55,7 +55,7 @@ class GenericPlanner(BasePlanner):
         knowledge: str = "",
         background: str = "",
         categories: Optional[List[str]] = None,
-    ) -> Steps:
+    ) -> List[Step]:
         """
         Use the LLM to break down the task into multiple steps in JSON format.
         'knowledge' is appended to the prompt to guide the planning process.
@@ -96,11 +96,11 @@ class GenericPlanner(BasePlanner):
             raise ValueError("Invalid JSON format in planner response.")
         self.logger.info(f"Got {len(plan.steps)} steps from the LLM.")
         self.logger.info(f"Plan: \n{plan}")
-        return plan
+        return plan.steps
 
     def execute_plan(
         self,
-        plan: Steps,
+        plan: List[Step],
         task: str,
         execution_history: Steps,
         evaluators_enabled: bool,
@@ -112,9 +112,9 @@ class GenericPlanner(BasePlanner):
         Execute a list of steps (previously planned).
         This replaces the step-by-step logic that was inside agent.py for GenericPlanner.
         """
-        self.logger.info(f"Executing plan with {len(plan.steps)} steps.")
+        self.logger.info(f"Executing plan with {len(plan)} steps.")
 
-        for idx, step in enumerate(plan.steps, 1):
+        for idx, step in enumerate(plan, 1):
             context_section = (
                 context_manager.context_to_str() if context_manager else ""
             )
@@ -149,7 +149,7 @@ class GenericPlanner(BasePlanner):
                     and evaluator.max_attempt + 1 > attempt
                 ):
                     self.logger.info(
-                        f"Executing Step {idx} Failed Attempt {attempt}: {step.description}"
+                        f"Executing Step {idx} Attempt {attempt}: {step.description}"
                     )
                     retry_step = Step(name=step.name, description=step.description)
                     retry_prompt = f"""
@@ -179,4 +179,3 @@ class GenericPlanner(BasePlanner):
                     context_manager.get_context_by_key("Execution History")
                     + step.to_success_info()
                 )
-        return plan
