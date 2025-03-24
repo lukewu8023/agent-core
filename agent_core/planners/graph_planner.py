@@ -8,14 +8,12 @@ from agent_core.planners.base_planner import (
     tool_knowledge_format,
 )
 from agent_core.planners.generic_planner import GenericPlanner
-from agent_core.models.model_registry import ModelRegistry
 from agent_core.utils.context_manager import ContextManager
 from agent_core.entities.steps import Steps, Step
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from langchain_core.tools import BaseTool
 from agent_core.utils.logger import get_logger
-from agent_core.executors.base_executor import BaseExecutor
 
 DEFAULT_EXECUTE_PROMPT = r"""
 Based on the below background, context and failed history, process the following current task, being mindful not to repeat or reintroduce errors from previous failed attempts, and respond with those suggestions:
@@ -521,10 +519,6 @@ class GraphPlanner(BasePlanner):
                 )
                 break
             node = pg.nodes[pg.current_node_name]
-            if reasoning_history is not None:
-                reasoning_history.append(
-                    f"Now executing node {node.name}: {node.description}"
-                )
 
             step, threshold = self.execute(
                 node, evaluators_enabled, task, background, evaluators, None

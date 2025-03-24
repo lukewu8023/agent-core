@@ -6,7 +6,6 @@ from .base_planner import BasePlanner, tool_knowledge_format
 from ..entities.steps import Steps, Step
 from ..evaluators import BaseEvaluator
 from ..utils.context_manager import ContextManager
-from ..executors.base_executor import BaseExecutor
 
 EXAMPLE_JSON1 = """{
     "steps": [
@@ -103,6 +102,7 @@ class GenericPlanner(BasePlanner):
         self,
         plan: Steps,
         task: str,
+        execution_history: Steps,
         evaluators_enabled: bool,
         evaluators: Dict[str, BaseEvaluator],
         context_manager: ContextManager,
