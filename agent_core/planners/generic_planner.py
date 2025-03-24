@@ -6,6 +6,7 @@ from .base_planner import BasePlanner, tool_knowledge_format
 from ..entities.steps import Steps, Step
 from ..evaluators import BaseEvaluator
 from ..utils.context_manager import ContextManager
+from ..executors.base_executor import BaseExecutor
 
 EXAMPLE_JSON1 = """{
     "steps": [
@@ -128,7 +129,7 @@ class GenericPlanner(BasePlanner):
             """
             step.prompt = final_prompt
             self.logger.info(f"Executing Step {idx}: {step.description}")
-            response = self._model.process(final_prompt)
+            response = self.executor.execute(final_prompt)
             step.result = response
             self.logger.info(f"Response for Step {idx}: {response}")
 
@@ -159,7 +160,7 @@ class GenericPlanner(BasePlanner):
                         {evaluator_result.details}
                         """
                     retry_step.prompt = retry_prompt
-                    response = self._model.process(retry_prompt)
+                    response = self.executor.execute(retry_prompt)
                     retry_step.result = response
                     evaluator_result = evaluator.evaluate(
                         task, step.description, response, background, context_manager

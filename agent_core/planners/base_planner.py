@@ -5,6 +5,7 @@ from typing import List, Optional
 from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
 from agent_core.entities.steps import Steps
+from agent_core.executors.base_executor import BaseExecutor
 
 
 DEFAULT_PROMPT = """ 
@@ -75,6 +76,51 @@ class BasePlanner(AgentBasic):
         """
         super().__init__(self.__class__.__name__, model_name, log_level)
         self.prompt = DEFAULT_PROMPT
+        self._executor = BaseExecutor(model_name, log_level)
+
+    @property
+    def executor(self):
+        """Get the current executor"""
+        return self._executor
+
+    @executor.setter
+    def executor(self, new_executor):
+        """
+        Set a new executor. This ensures the executor's model_name
+        is properly synchronized with the planner's model_name.
+        """
+        if not isinstance(new_executor, BaseExecutor):
+            raise TypeError(
+                "executor must be an instance of BaseExecutor or its subclass"
+            )
+        self._executor = new_executor
+        # Update any planner-specific settings needed for the executor
+        self._configure_executor()
+        self.logger.info(f"Executor changed to {new_executor.__class__.__name__}")
+
+    def _configure_executor(self):
+        """
+        Configure the executor with planner-specific settings.
+        Subclasses should override this if they need to set specific configurations.
+        """
+        pass
+
+    @property
+    def model_name(self):
+        """Get the model name"""
+        return self._model_name
+
+    @model_name.setter
+    def model_name(self, model_name: str):
+        """
+        Set the model name for both the planner and its executor.
+        """
+        # Call the parent implementation directly
+        AgentBasic.model_name.__set__(self, model_name)
+        
+        # Also update the executor's model if it exists
+        if hasattr(self, "_executor") and self._executor:
+            self._executor.model_name = model_name
 
     @abstractmethod
     def plan(
