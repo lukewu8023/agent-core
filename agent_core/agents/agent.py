@@ -117,10 +117,11 @@ class Agent(AgentBasic):
             background=self.background,
             categories=current_categories,
         )
-
+        self._execution_history.add_plan(plan.steps)
         # Now just call planner's execute_plan(...) in a unified way
-        self._execution_history = self.planner.execute_plan(
+        self.planner.execute_plan(
             task=task,
+            execution_history=self._execution_history,
             plan=plan,
             context_manager=self.context,
             background=self.background,
@@ -131,6 +132,9 @@ class Agent(AgentBasic):
         self.get_token()
         return agent_result
 
+    def get_reasoning(self):
+        return self._execution_history.trace_steps, self._execution_history.trace_plan
+
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
         final_prompt = self.execute_prompt.format(
@@ -140,7 +144,7 @@ class Agent(AgentBasic):
         )
         response = self._model.process(final_prompt)
         self.logger.info(f"Response: {response}")
-        self._execution_history.add_step(
+        self._execution_history.add_success_step(
             Step(
                 name="Direct Task Execution",
                 description=task,

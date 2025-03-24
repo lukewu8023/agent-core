@@ -279,6 +279,15 @@ class PlanGraph:
         if self.start_node_name is None:
             self.start_node_name = node.name
 
+    def to_plan(self) -> List[Step]:
+        plan = list()
+        process_node_name = self.start_node_name
+        while process_node_name and process_node_name != "":
+            process_node = self.nodes.get(process_node_name)
+            plan.append(process_node)
+            process_node_name = process_node.next_node
+        return plan
+
     def add_history_record(self, record: Dict):
         self.replan_history.append(record)
 
@@ -341,11 +350,13 @@ class ExecuteResult(BaseModel):
 
 
 def cleanup_context(execution_history: Steps, restart_node_name):
-    replan_execute_history = Steps(steps=[])
+    remove_index = -1
     for index, step in enumerate(execution_history.steps):
-        if step.name != restart_node_name:
-            replan_execute_history.add_step(step)
-    return replan_execute_history
+        if step.name == restart_node_name:
+            remove_index = index
+            break
+    if remove_index != -1:
+        execution_history.steps = execution_history.steps[:remove_index]
 
 
 def pass_threshold(score, node_threshold, evaluator_threshold):
@@ -462,6 +473,7 @@ class GraphPlanner(BasePlanner):
         self,
         plan: Steps,
         task: str,
+        execution_history: Steps,
         evaluators_enabled: bool,
         evaluators: dict,
         context_manager: ContextManager = ContextManager(),
@@ -472,7 +484,6 @@ class GraphPlanner(BasePlanner):
         'steps' is ignored in practice, because we use self.plan_graph.
         This signature is here for consistency with the BasePlanner interface.
         """
-        execution_history = Steps()
         if not self.plan_graph:
             self.logger.error(
                 "No plan graph found. Need to generate plan graph by plan() first."
@@ -497,11 +508,12 @@ class GraphPlanner(BasePlanner):
             ):
                 if node.evaluation_threshold:
                     self.logger.info(
-                        f"Actual Node Threadhold: {node.evaluation_threshold}, Decision: Accept Output"
+                        f"Actual Node Threshold: {node.evaluation_threshold}, Decision: Accept Output"
                     )
                 self.success_result(node, execution_history, step)
                 continue
             else:
+                execution_history.add_retry_step(step)
                 retry = True
                 retry_steps: List[Step] = [step]
                 while retry and node.max_attempts > node.current_attempts:
@@ -519,11 +531,13 @@ class GraphPlanner(BasePlanner):
                     ):
                         if node.evaluation_threshold:
                             self.logger.info(
-                                f"Actual Node Threadhold: {node.evaluation_threshold}, Decision: Accept Output"
+                                f"Actual Node Threshold: {node.evaluation_threshold}, Decision: Accept Output"
                             )
                         attempt_step.retries = retry_steps
+                        step = attempt_step
                         retry = False
                     else:
+                        execution_history.add_retry_step(attempt_step)
                         retry_steps.append(attempt_step)
                         retry = True
                 if not retry:
@@ -554,13 +568,13 @@ class GraphPlanner(BasePlanner):
                                 "replan_history": adjustments,
                             }
                         )
-                        self.apply_adjustments_to_plan(node.name, adjustments)
+                        self.apply_adjustments_to_plan(node.name, adjustments, execution_history)
                         self.logger.info(
                             f"New plan after adjusted: {self.plan_graph.nodes}"
                         )
                         restart_node_name = self._determine_restart_node(adjustments)
                         if restart_node_name:
-                            execution_history = cleanup_context(
+                            cleanup_context(
                                 execution_history, restart_node_name
                             )
                             pg.current_node_name = restart_node_name
@@ -581,7 +595,7 @@ class GraphPlanner(BasePlanner):
         task,
         background,
         evaluators,
-        failure_step: List[Step],
+        failure_step: Optional[List[Step]],
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -603,11 +617,11 @@ class GraphPlanner(BasePlanner):
         self.context_manager.add_context(step.name, step.to_success_info())
         # Keep the raw response in node's execution_results for reference
         # node.execution_results.append(step.result)
-        execution_history.add_step(step)
+        execution_history.add_success_step(step)
         node.result = step.result
         # Post-success replan check
         # We'll see if we want to add or replace future steps on the fly.
-        self._success_replan(self.plan_graph, node)
+        self._success_replan(self.plan_graph, node, execution_history)
         self.plan_graph.current_node_name = node.next_node
 
     def _execute_node(
@@ -732,7 +746,7 @@ tool response : {tool_response}
             "replan_history": pg.replan_history,
         }
 
-    def _success_replan(self, plan_graph: PlanGraph, node: Node):
+    def _success_replan(self, plan_graph: PlanGraph, node: Node, execution_history: Steps):
         """
         After a node is successfully executed, optionally adjust remaining steps
         in the plan using the DEFAULT_SUCCESS_REPLAN_PROMPT. If 'action' = 'none',
@@ -813,6 +827,7 @@ tool response : {tool_response}
                 self.logger.warning(
                     f"Unknown action '{adjustments.action}' in success replan. No changes made."
                 )
+            execution_history.adjust_plan(adjustments.action, plan_graph.to_plan())
         except Exception as e:
             self.logger.warning(
                 "Post-success replan response is not valid JSON. Skipping replan."
@@ -865,7 +880,8 @@ tool response : {tool_response}
                 )
             return None
 
-    def apply_adjustments_to_plan(self, node_name: str, adjustments: Adjustments):
+    def apply_adjustments_to_plan(self, node_name: str, adjustments: Adjustments,
+                                  execution_history: Steps):
         if adjustments.action == "breakdown":
             original_node = self.plan_graph.nodes.pop(node_name)
             if not original_node:
@@ -928,3 +944,4 @@ tool response : {tool_response}
 
         else:
             self.logger.warning(f"Unknown action in adjustments: {adjustments.action}")
+        execution_history.adjust_plan(adjustments.action, self.plan_graph.to_plan())

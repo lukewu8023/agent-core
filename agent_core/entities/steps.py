@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 
@@ -17,11 +17,24 @@ class Step(BaseModel):
     category: Optional[str] = "default"
     retries: Optional[List[Step]] = field(default_factory=list)
     evaluator_result: Optional[EvaluatorResult] = None
+    action: str = "next"
+    is_success: bool = True
+    plan_name: int = 1
 
     def add_retry(self, step: Step):
         if self.retries is None:
             self.retries = list()
         self.retries.append(step)
+
+    def enrich_success_step(self, plan_name):
+        self.action = "next"
+        self.is_success = True
+        self.plan_name = plan_name
+
+    def enrich_failure_step(self, action, plan_name):
+        self.action = action
+        self.is_success = False
+        self.plan_name = plan_name
 
     def add_evaluator_result(self, evaluator_result: EvaluatorResult):
         self.evaluator_result = evaluator_result
@@ -54,12 +67,31 @@ class Steps(BaseModel):
     summary: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+    trace_steps: List[Step] = field(default_factory=list)
+    trace_plan: Dict[int, List[Step]] = field(default_factory=dict)
 
     def __str__(self):
         return self.execution_history_to_str()
 
-    def add_step(self, step: Step):
+    def add_success_step(self, step: Step):
+        step.enrich_success_step(len(self.trace_plan))
+        self.trace_steps.append(step)
         self.steps.append(step)
+
+    def add_retry_step(self, step: Step):
+        step.enrich_failure_step("retry", len(self.trace_plan))
+        self.trace_steps.append(step)
+
+    def adjust_plan(self, action, plan: List[Step]):
+        index = len(self.trace_plan) + 1
+        self.trace_plan[index] = plan
+        if self.trace_steps and len(self.trace_steps) > 0:
+            final_step = self.trace_steps[-1]
+            final_step.action = action
+
+    def add_plan(self, plan: List[Step]):
+        index = len(self.trace_plan) + 1
+        self.trace_plan[index] = plan
 
     def get_info(self):
         return [step.to_dict() for step in self.steps]
