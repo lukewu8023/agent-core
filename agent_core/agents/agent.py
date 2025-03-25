@@ -137,6 +137,9 @@ class Agent(AgentBasic):
         self.get_token()
         return agent_result
 
+    def get_execute_history(self):
+        self._execution_history.execution_history_to_str()
+
     def get_execution_reasoning(self):
         """
         Generate a narrative describing the agent's reasoning process based on the execution history.
