@@ -10,6 +10,10 @@ from agent_core.planners.base_planner import BasePlanner
 from agent_core.utils.context_manager import ContextManager
 from agent_core.evaluators.evaluators import get_evaluator
 from agent_core.evaluators import BaseEvaluator
+from agent_core.utils.narrative_templates import (
+    EXECUTION_NARRATIVE_TEMPLATES,
+    PLAN_NARRATIVE_TEMPLATES,
+)
 
 DEFAULT_EXECUTE_PROMPT = """
 {context_section}
@@ -61,6 +65,7 @@ class Agent(AgentBasic):
       - execute_prompt: overrides how we generate the no-planner prompt
       - summary_prompt (used in get_execution_result)
     """
+
     def __init__(
         self, model_name: Optional[str] = None, log_level: Optional[str] = None
     ):
@@ -132,8 +137,146 @@ class Agent(AgentBasic):
         self.get_token()
         return agent_result
 
-    def get_reasoning(self):
-        return self._execution_history.trace_steps, self._execution_history.trace_plan
+    def get_execution_reasoning(self):
+        """
+        Generate a narrative describing the agent's reasoning process based on the execution history.
+        Includes both the plans and the execution steps in a coherent narrative.
+
+        Returns:
+            str: A narrative description of the reasoning process
+        """
+        narrative_parts = []
+
+        # Check if we have plans and steps to process
+        if (
+            not hasattr(self._execution_history, "trace_plan")
+            or not self._execution_history.trace_plan
+        ):
+            return "No execution reasoning available."
+
+        # Get the initial plan (plan_id = 1)
+        initial_plan = self._execution_history.trace_plan.get(1)
+        if initial_plan and initial_plan.plan:
+            plan_steps = "\n".join(
+                [f"step {step.name}: {step.description}" for step in initial_plan.plan]
+            )
+            narrative_parts.append(
+                self._get_plan_narrative(
+                    template_key="initial_plan", plan_steps=plan_steps
+                )
+            )
+
+        # Get all steps in the trace
+        steps = (
+            self._execution_history.trace_steps
+            if hasattr(self._execution_history, "trace_steps")
+            else []
+        )
+
+        # Process each step and add new plans when they appear
+        current_plan_id = 1
+        for step in steps:
+            # Check if this step triggered a plan change
+            if step.action.startswith("failure ") or step.action.startswith("success "):
+                next_plan_id = current_plan_id + 1
+                if next_plan_id in self._execution_history.trace_plan:
+                    # First add the reasoning for the current step
+                    narrative_parts.append(self._get_step_narrative(step))
+
+                    # Then describe the new plan using the appropriate template
+                    next_plan = self._execution_history.trace_plan[next_plan_id]
+                    if next_plan and next_plan.plan:
+                        plan_steps = "\n".join(
+                            [
+                                f"step {step.name}: {step.description}"
+                                for step in next_plan.plan
+                            ]
+                        )
+
+                        # Get plan narrative based on the step
+                        narrative_parts.append(
+                            self._get_plan_narrative(step=step, plan_steps=plan_steps)
+                        )
+                        current_plan_id = next_plan_id
+                        continue
+
+            # Add the standard step narrative
+            narrative_parts.append(self._get_step_narrative(step))
+
+        # Join the narrative parts
+        reasoning_text = "\n".join(narrative_parts)
+
+        # Log the reasoning process
+        self.logger.info(f"Execution reasoning: {reasoning_text}")
+
+        return reasoning_text
+
+    def _get_plan_narrative(self, plan_steps, step=None, template_key=None):
+        """
+        Get a formatted plan narrative using the appropriate template.
+
+        Args:
+            plan_steps: String containing the steps description
+            step: Step object that triggered the plan change (optional)
+            template_key: Override template key (used for initial plan)
+
+        Returns:
+            str: Formatted plan narrative
+        """
+        # If template_key is not provided, determine it from the step
+        if template_key is None and step is not None:
+            if "failure" in step.action:
+                template_key = (
+                    "breakdown_plan" if "breakdown" in step.action else "failure_replan"
+                )
+            elif "success" in step.action:
+                template_key = "success_replan"
+            else:
+                template_key = "replan"
+        elif template_key is None:
+            template_key = "replan"  # Default fallback
+
+        template = PLAN_NARRATIVE_TEMPLATES.get(
+            template_key, PLAN_NARRATIVE_TEMPLATES["replan"]
+        )
+        return template.format(plan_steps=plan_steps)
+
+    def _get_step_narrative(self, step):
+        """
+        Generate a narrative string for a given step based on its action.
+
+        Args:
+            step: A Step object containing action and other metadata
+
+        Returns:
+            str: A narrative description of the reasoning at this step
+        """
+        action = step.action
+        # Handle special cases with combined actions
+        if action.startswith("failure "):
+            if "breakdown" in action:
+                template_key = "failure breakdown"
+            elif "replan" in action:
+                template_key = "failure replan"
+            else:
+                template_key = "failure"
+        elif action.startswith("success "):
+            if "replan" in action:
+                template_key = "success replan"
+            elif "none" in action:
+                template_key = "success none"
+            else:
+                template_key = "success replan"  # default to replan
+        else:
+            template_key = action
+
+        # Use the appropriate template or a default one
+        template = EXECUTION_NARRATIVE_TEMPLATES.get(
+            template_key, "Taking step {step_name}."
+        )
+
+        # Format the template with step data
+        return template.format(step_name=step.name, step_description=step.description)
 
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
