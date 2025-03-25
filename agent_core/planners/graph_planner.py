@@ -279,13 +279,9 @@ class PlanGraph:
             self.start_node_name = node.name
 
     def to_plan(self) -> List[Node]:
-        plan = list()
-        process_node_name = self.start_node_name
-        while process_node_name and process_node_name != "":
-            process_node = self.nodes.get(process_node_name)
-            plan.append(process_node)
-            process_node_name = process_node.next_node
-        return plan
+        nodes = list(self.nodes.values())
+        nodes.sort(key=lambda n: n.name)
+        return nodes
 
     def add_history_record(self, record: Dict):
         self.replan_history.append(record)
@@ -810,7 +806,7 @@ tool response : {tool_response}
                 self.logger.info(f"New Steps: {cleaned}")
                 # 1) Remove all un-executed steps from this node onward.
                 #    This example removes any nodes listed in node.next_nodes, plus any "chain" from them.
-                to_remove = [node.next_node]  # immediate next(s)
+                to_remove = []  # immediate next(s)
                 # Optionally, you might do a BFS/DFS to remove all reachable children, if desired:
                 # gather all reachable nodes in future
                 stack = [node.next_node]
@@ -824,10 +820,7 @@ tool response : {tool_response}
                         # add all *that* node’s next_nodes to stack
                         stack.extend(plan_graph.nodes[nxt].next_node)
                         to_remove.append(nxt)
-                # Actually remove them from the plan
-                for rm_name in to_remove:
-                    if rm_name in plan_graph.nodes:
-                        del plan_graph.nodes[rm_name]
+
                 # 2) Add each modification as a new node (fully replacing the steps).
                 for mod in adjustments.modifications:
                     if not mod.name:
@@ -835,7 +828,30 @@ tool response : {tool_response}
                             f"Skipping modification with no name: {mod}"
                         )
                         continue
-                    plan_graph.add_node(mod)
+                    if mod.name in plan_graph.nodes:
+                        node = plan_graph.nodes.pop(mod.name)
+                        node.current_attempts = 0
+                        node.description = (
+                            mod.description if mod.description else node.description
+                        )
+                        node.next_node = mod.next_node if mod.next_node else node.next_node
+                        node.evaluation_threshold = (
+                            mod.evaluation_threshold
+                            if mod.evaluation_threshold
+                            else node.evaluation_threshold
+                        )
+                        node.max_attempts = (
+                            mod.max_attempts if mod.max_attempts else node.max_attempts
+                        )
+                        node.category = mod.category if mod.category else node.category
+                        plan_graph.add_node(node)
+                        to_remove.remove(mod.name)
+                    else:
+                        # If the node does not exist, create a new Node
+                        plan_graph.add_node(mod)
+                # Actually remove them from the plan
+                for rm_name in to_remove:
+                    del plan_graph.nodes[rm_name]
                 # 3) Link the current node to the first new node if it exists
                 if adjustments.modifications:
                     node.next_node = adjustments.modifications[0].name
