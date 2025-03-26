@@ -1,4 +1,4 @@
-# examples/execution_summaries.py
+# examples/execution_output.py
 
 import sys
 import os
@@ -21,7 +21,7 @@ def main():
     task = "3 steps draw a digital flower using computer characters."
     response = agent.execute(task)
     print(f"Response: {response}")
-    
+
     execution_responses = agent.execution_responses
     print(f"Execution Response: {agent.execution_responses}")
     execution_history = agent.execution_history
@@ -30,7 +30,7 @@ def main():
     print(f"Execution Result: {execution_result}")
     final_response = agent.get_final_response()
     print(f"Final Result: {final_response}")
-    
+
     agent.export_execution_trace()
 
 
