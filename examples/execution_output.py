@@ -26,8 +26,6 @@ def main():
     print(f"Execution Response: {agent.execution_responses}")
     execution_history = agent.execution_history
     print(f"Execution History: {execution_history}")
-    execution_result = agent.get_execution_result_summary()
-    print(f"Execution Result: {execution_result}")
     final_response = agent.get_final_response()
     print(f"Final Result: {final_response}")
 
