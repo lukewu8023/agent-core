@@ -2,30 +2,25 @@
 
 ## Feature v1
 ## trace
-- graph first step to node (done)
-- plan add adj (done)
-- replan divided success and false (done)
-- DEFAULT_SUCCESS_REPLAN_PROMPT 184 plan enhancement (done)
 - SUCCESS PLAN current_attempts not 0 (done, no need fix, current_attempts will change base on process)
-- Final Step action change next to end (done)
-- implement a util to convert execution_trace to mermaid flowchat
 - Generic planner execute history
-- avoid dead loop
-- able to save execution history to a separate json file in log folder (in example code)
 
 ### bug
 - return json has "/" will cause crash
-- error is thrown if first step got retried 3 times and breakdown
 
-### langgragh
-- visulizaiton follow langgragh diagram
+### UI
+- implement a util to convert execution_trace json to mermaid flowchat
+- visulizaiton flow diagram
 
 ## Feature v2
+- avoid dead loop
 - change context by step(v2)
 - knowledge & background rag(v2)
 - knowledge graph to collect sufficient information(v2)
 - human in the loop(v2)
 - minimize context based on data(v2)
+- persistent experience and correct execution flow in RAG (v2)
+- multiple rounds conversation (v2)
 
 ### Review
 - review **Plan & Execution (Each node with execution results, if executed)** in success replan
@@ -105,3 +100,10 @@
 - review **Execution History** (Notes: 1.0 is the full score. The closer to 1.0, the closer to accuracy. Less than evaluation_threshold mark as failed.) (done, deleted)
 - refactor execution_trace structure (done)
 - generate reasoing history real time based on execution_trace structure (*) (done)
+- error is thrown if first step got retried 3 times and breakdown
+- graph first step to node (done)
+- plan add adj (done)
+- replan divided success and false (done)
+- DEFAULT_SUCCESS_REPLAN_PROMPT 184 plan enhancement (done)
+- Final Step action change next to end (done)
+- able to save execution history to a separate json file in log folder (in example code)
