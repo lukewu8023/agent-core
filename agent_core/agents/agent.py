@@ -1,5 +1,8 @@
 # agents/agent.py
 
+import json
+import datetime
+import os
 from typing import Optional, List
 
 from langchain_core.tools import BaseTool
@@ -137,8 +140,128 @@ class Agent(AgentBasic):
         self.get_token()
         return agent_result
 
-    def get_execute_history(self):
+    def execute_without_planner(self, task: str):
+        context_section = self.context.context_to_str()
+        final_prompt = self.execute_prompt.format(
+            context_section=context_section,
+            background=self.background,
+            task=task,
+        )
+        response = self._model.process(final_prompt)
+        self.logger.info(f"Response: {response}")
+        self._execution_history.add_success_step(
+            Step(
+                name="Direct Task Execution",
+                description=task,
+                result=str(response),
+                prompt=final_prompt,
+            )
+        )
+        return response
+
+    def planner(self, planner):
+        if not issubclass(planner.__class__, BasePlanner):
+            error_msg = "Planner must be an instance of BasePlanner."
+            self.logger.error(error_msg)
+            raise TypeError(error_msg)
+        self.planner = planner
+        self.logger.info(f"Agent planner uses model: {planner.__class__.__name__}")
+
+    def enable_evaluators(self):
+        self.evaluators_enabled = True
+        self.logger.info("Evaluators have been enabled.")
+
+    def disable_evaluators(self):
+        self.evaluators_enabled = False
+        self.logger.info("Evaluators have been disabled.")
+
+    def _load_default_evaluators(self):
+        """
+        Load a default mapping of category -> evaluator (all referencing the current model).
+        Make a local copy so user modifications won't affect the original file.
+        """
+        evaluators = get_evaluator(self.model_name)
+        self.evaluators = dict(evaluators)
+
+    def add_evaluator(self, category: str, evaluator: BaseEvaluator):
+        """
+        Insert or override a evaluator for the given category.
+        """
+        self.evaluators[category] = evaluator
+
+    def update_evaluator(self, category: str, evaluator: BaseEvaluator):
+        """
+        Update the evaluator for an existing category.
+        If the category doesn't exist, we log a warning and add it.
+        """
+        if category in self.evaluators.keys():
+            self.evaluators[category] = evaluator
+        else:
+            self.logger.warning(
+                f"Category '{category}' not found in evaluator. Creating new entry."
+            )
+            self.evaluators[category] = evaluator
+
+    @property
+    def execution_history(self) -> Steps:
+        """
+        Read-only access to the execution history.
+        Each item is a dict with keys: 'step_name', 'step_description', 'step_result'.
+        """
+        return self._execution_history
+
+    def get_execution_history(self):
         self._execution_history.execution_history_to_str()
+
+    def export_execution_trace(self):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        trace_name = f"logs/trace_{timestamp}.json"
+        os.makedirs(os.path.dirname(trace_name), exist_ok=True)
+        # reasoning_name = f"log/reasoning_{timestamp}.json"
+        # os.makedirs(os.path.dirname(reasoning_name), exist_ok=True)
+        with open(trace_name, "w", encoding="utf-8") as f:
+            json.dump(
+                self.execution_history.model_dump(), f, indent=4, ensure_ascii=False
+            )
+        # with open(reasoning_name, "w", encoding="utf-8") as f:
+        #     json.dump(self.get_execution_reasoning(), f, indent=4, ensure_ascii=False)
+
+    @property
+    def execution_responses(self) -> str:
+        """
+        Read-only access to the execution responses.
+        Combine all 'step_result' together.
+        """
+        return self._execution_history.execution_history_to_responses()
+
+    def get_final_response(self, task: str) -> str:
+        history_text = self._execution_history.execution_history_to_str()
+        final_response_prompt = self.response_prompt.format(
+            task=task, history_text=history_text
+        )
+        self.logger.info("Generating final response.")
+        final_response = self._model.process(final_response_prompt)
+        return str(final_response)
+
+    def get_execution_result_summary(self) -> str:
+        """
+        Produce an overall summary describing how the solution was completed,
+        using the LLM (agent's model) to format the final explanation if desired.
+        """
+        if not self._execution_history:
+            return (
+                "No direct step-based execution history recorded. "
+                "(If you used GraphPlanner, the node-based execution is stored inside the planner.)"
+            )
+
+        history_text = self._execution_history.execution_history_to_str()
+        final_prompt = self.summary_prompt.format(history_text=history_text)
+
+        self.logger.info("Generating execution result summary.")
+        summary_response = self._model.process(final_prompt)
+        cleaned = summary_response.replace("```json", "").replace("```", "").strip()
+        self._execution_history.summary = cleaned
+        return cleaned
 
     def get_execution_reasoning(self):
         """
@@ -161,7 +284,7 @@ class Agent(AgentBasic):
         initial_plan = self._execution_history.trace_plan.get(1)
         if initial_plan and initial_plan.plan:
             plan_steps = "\n".join(
-                [f"step {step.name}: {step.description}" for step in initial_plan.plan]
+                [f"*Step {step.name}: {step.description}" for step in initial_plan.plan]
             )
             narrative_parts.append(
                 self._get_plan_narrative(
@@ -191,7 +314,7 @@ class Agent(AgentBasic):
                     if next_plan and next_plan.plan:
                         plan_steps = "\n".join(
                             [
-                                f"step {step.name}: {step.description}"
+                                f"*Step {step.name}: {step.description}"
                                 for step in next_plan.plan
                             ]
                         )
@@ -281,114 +404,7 @@ class Agent(AgentBasic):
         # Format the template with step data
         return template.format(step_name=step.name, step_description=step.description)
 
-    def execute_without_planner(self, task: str):
-        context_section = self.context.context_to_str()
-        final_prompt = self.execute_prompt.format(
-            context_section=context_section,
-            background=self.background,
-            task=task,
-        )
-        response = self._model.process(final_prompt)
-        self.logger.info(f"Response: {response}")
-        self._execution_history.add_success_step(
-            Step(
-                name="Direct Task Execution",
-                description=task,
-                result=str(response),
-                prompt=final_prompt,
-            )
-        )
-        return response
-
     def get_token(self):
         input_tokens, output_tokens = ModelRegistry.get_token()
         self._execution_history.input_tokens = input_tokens
         self._execution_history.output_tokens = output_tokens
-
-    def get_final_response(self, task: str) -> str:
-        history_text = self._execution_history.execution_history_to_str()
-        final_response_prompt = self.response_prompt.format(
-            task=task, history_text=history_text
-        )
-        self.logger.info("Generating final response.")
-        final_response = self._model.process(final_response_prompt)
-        return str(final_response)
-
-    def get_execution_result_summary(self) -> str:
-        """
-        Produce an overall summary describing how the solution was completed,
-        using the LLM (agent's model) to format the final explanation if desired.
-        """
-        if not self._execution_history:
-            return (
-                "No direct step-based execution history recorded. "
-                "(If you used GraphPlanner, the node-based execution is stored inside the planner.)"
-            )
-
-        history_text = self._execution_history.execution_history_to_str()
-        final_prompt = self.summary_prompt.format(history_text=history_text)
-
-        self.logger.info("Generating execution result summary.")
-        summary_response = self._model.process(final_prompt)
-        cleaned = summary_response.replace("```json", "").replace("```", "").strip()
-        self._execution_history.summary = cleaned
-        return cleaned
-
-    def planner(self, planner):
-        if not issubclass(planner.__class__, BasePlanner):
-            error_msg = "Planner must be an instance of BasePlanner."
-            self.logger.error(error_msg)
-            raise TypeError(error_msg)
-        self.planner = planner
-        self.logger.info(f"Agent planner uses model: {planner.__class__.__name__}")
-
-    @property
-    def execution_history(self) -> Steps:
-        """
-        Read-only access to the execution history.
-        Each item is a dict with keys: 'step_name', 'step_description', 'step_result'.
-        """
-        return self._execution_history
-
-    def enable_evaluators(self):
-        self.evaluators_enabled = True
-        self.logger.info("Evaluators have been enabled.")
-
-    def disable_evaluators(self):
-        self.evaluators_enabled = False
-        self.logger.info("Evaluators have been disabled.")
-
-    @property
-    def execution_responses(self) -> str:
-        """
-        Read-only access to the execution responses.
-        Combine all 'step_result' together.
-        """
-        return self._execution_history.execution_history_to_responses()
-
-    def _load_default_evaluators(self):
-        """
-        Load a default mapping of category -> evaluator (all referencing the current model).
-        Make a local copy so user modifications won't affect the original file.
-        """
-        evaluators = get_evaluator(self.model_name)
-        self.evaluators = dict(evaluators)
-
-    def add_evaluator(self, category: str, evaluator: BaseEvaluator):
-        """
-        Insert or override a evaluator for the given category.
-        """
-        self.evaluators[category] = evaluator
-
-    def update_evaluator(self, category: str, evaluator: BaseEvaluator):
-        """
-        Update the evaluator for an existing category.
-        If the category doesn't exist, we log a warning and add it.
-        """
-        if category in self.evaluators.keys():
-            self.evaluators[category] = evaluator
-        else:
-            self.logger.warning(
-                f"Category '{category}' not found in evaluator. Creating new entry."
-            )
-            self.evaluators[category] = evaluator
