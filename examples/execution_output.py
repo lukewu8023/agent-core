@@ -19,14 +19,19 @@ def main():
     agent.planner = GenericPlanner()
 
     task = "3 steps draw a digital flower using computer characters."
-    agent.execute(task)
-
+    response = agent.execute(task)
+    print(f"Response: {response}")
+    
     execution_responses = agent.execution_responses
     print(f"Execution Response: {agent.execution_responses}")
     execution_history = agent.execution_history
     print(f"Execution History: {execution_history}")
     execution_result = agent.get_execution_result_summary()
     print(f"Execution Result: {execution_result}")
+    final_response = agent.get_final_response()
+    print(f"Final Result: {final_response}")
+    
+    agent.export_execution_trace()
 
 
 if __name__ == "__main__":
