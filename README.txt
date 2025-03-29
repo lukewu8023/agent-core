@@ -3,10 +3,10 @@
 PhAENix is an advanced, developer-friendly framework for building **single reliable LLM-based autonomous agents**, integrating **task planning**, **evaluation**, and **execution** into a seamless workflow. It abstracts complex aspects such as prompt engineering, multi-model coordination, and operational flow management—enabling developers to create powerful agents without being overwhelmed by technical intricacies. With a flexible design, PhAENix supports a wide range of use cases while allowing fine-grained control over each component.
 
 - **R2D2 Native Support**: PhAENix provides seamless connectivity with **R2D2**, a company-internal gateway designed for monitoring and supervising LLM calls. This integration ensures that all external LLM communications comply with corporate governance and tracking requirements. 
-- **Developer-Friendly**: By hiding most of the underlying complexity, this framework makes it straightforward for developers to specify high-level goals such as planning steps and configuring validation without worrying about convoluted implementation details.
+- **Developer-Friendly**: By hiding most of the underlying complexity, this framework makes it straightforward for developers to specify high-level goals such as planning steps and configuring evaluation without worrying about convoluted implementation details. It also provide a way for developers to debug the task execution step by step.
 - **Planner Variety**: The framework offers flexible planning options, including step-based planners like GenericPlanner and more complex node-graph planners like GraphPlanner, ensuring that both simple and intricate workflows are supported seamlessly.
 - **Evaluation Architecture**: It includes a robust validation system that checks outputs at every step, allowing errors to be detected early. This iterative validation significantly enhances overall accuracy by ensuring that tasks are iteratively refined or dynamically adjusted.
-- **Custom Configuration**: Users can adjust the framework to use different LLM models for different components—such as planning, validation, or execution—allowing precise control over the agent's behavior. Additionally, customizing prompts for each module allows for specific and tailored interactions at each stage.
+- **Custom Configuration**: Users can adjust the framework to use different LLM models for different components—such as planning, evaluation, or execution—allowing precise control over the agent's behavior. Additionally, customizing prompts for each module allows for specific and tailored interactions at each stage.
 - **Tool & UI Integration**: The framework supports dynamic tool use and integration with external APls. Developers can call functions, engage in real-time interactions, or retrieve live data as part of the agent's workflow, enabling interactive scenarios and adaptive behavior.
 - **Other Agent Framework Integration**: PhAENix is designed to work smoothly alongside with other Agent development frameworks like **MS AutoGen** and **LangGraph**, allowing developers to combine the strengths of multiple agent frameworks in a single ecosystem. Whether you need robust orchestration with LangGraph or specialized features from MS AutoGen, you can easily plug these tools into your PhAENix-powered agent for a streamlined development experience.
 
@@ -179,23 +179,26 @@ context.add_context(
 )
 
 # Execute
-agent.execute("Who are you?")
+response = agent.execute("Who are you?")
 
 # Execution Result
 execution_responses = agent.execution_responses
 execution_history = agent.execution_history
 execution_result = agent.get_execution_result_summary()
 
+# Expot Exexution Trace
+agent.export_execution_trace()
+
 ```
 
 ## TODO List
 
-- Dynamically manage context in single step
 - knowledge and background RAG
+- Persistent experience and success execution flow in RAG
 - Introduce knowledge graph to collect sufficient information with human-in-loop
-- Support LLM defined max attempt and threshold in evaluation
-- Execution loop control
-- Enrich llm related logs (input/output/prompt)
+- Execution loop control to avoid infinite/dead loop
+- Multiple rounds of conversation
+- Dynamically manage context in single step
 
 ## Feedback & Usage Tracking
 
