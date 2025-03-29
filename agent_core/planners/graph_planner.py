@@ -1,5 +1,6 @@
 # planners/graph_planner.py
 
+import copy
 from agent_core.evaluators import BaseEvaluator
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 from pydantic import BaseModel
@@ -108,6 +109,11 @@ Below are the details:
 **Replanning History**
 {replan_history}
 
+**Tool Usage Guide**
+If Task Use Tool is `False`, process according to the description of the current task,
+If Task Use Tool is `True`, process using tools,
+For each tool argument, based on context and human's question to generate arguments value according to the argument description.
+
 **Instructions**
 - Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
     1. **breakdown**: Break down the task of failed node {current_node_name} into smaller subtasks.
@@ -126,7 +132,9 @@ Below are the details:
             "description": "...", // description of the subtask
             "next_node": "...", // next node name
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
-            "max_attempts": 3
+            "max_attempts": 3,
+            "use_tool": <bool>,
+            "tool_name": "<string>" // if use_tool is False then do not need this
         }}
     ],
     "restart_node_name": "...", // Required if action is "replan"
@@ -136,7 +144,9 @@ Below are the details:
             "description": "...",
             "next_node": "...",
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
-            "max_attempts": 3
+            "max_attempts": 3,
+            "use_tool": <bool>,
+            "tool_name": "<string>" // if use_tool is False then do not need this
         }}
     ],
     "rationale": "..." // explanation of your reasoning here
@@ -175,6 +185,11 @@ You are an intelligent planner reviewing a plan after the successful execution o
 **Remaining Plan**
 {remaining_plan}
 
+**Tool Usage Guide**
+If Task Use Tool is `False`, process according to the description of the current task,
+If Task Use Tool is `True`, process using tools,
+For each tool argument, based on context and human's question to generate arguments value according to the argument description.
+
 **Instructions**
 Decide between:
 1. Do nothing (action = "none") if the remaining plan is likely to fulfill the root task and no critical changes are needed.
@@ -195,7 +210,9 @@ When replanning:
             "description": "...",
             "next_node": "...", // leave it empty string if it is the last node
             "evaluation_threshold": 0.8, // it can be changed based on the complexity of the task
-            "max_attempts": 3
+            "max_attempts": 3,
+            "use_tool": <bool>,
+            "tool_name": "<string>" // if use_tool is False then do not need this
         }}
     ],
     "rationale": "..." // explanation of your reasoning here
@@ -222,7 +239,9 @@ or, if minimal replanning is necessary:
             "description": "Obtain missing data required to proceed.",
             "next_node": "B.3", 
             "evaluation_threshold": 0.8,
-            "max_attempts": 3
+            "max_attempts": 3,
+            "use_tool": <bool>,
+            "tool_name": "<string>" // if use_tool is False then do not need this
         }}
     ],
     "rationale": "The original plan lacked critical information to proceed, hence a minimal adjustment is required."
@@ -279,7 +298,7 @@ class PlanGraph:
             self.start_node_name = node.name
 
     def to_plan(self) -> List[Node]:
-        nodes = list(self.nodes.values())
+        nodes = copy.deepcopy(list(self.nodes.values()))
         nodes.sort(key=lambda n: n.name)
         return nodes
 
@@ -764,7 +783,7 @@ tool response : {tool_response}
             "replan_history": pg.replan_history,
         }
 
-    def _success_replan(self, plan_graph: PlanGraph, node: Node, execution_history: Steps):
+    def _success_replan(self, plan_graph: PlanGraph, current_node: Node, execution_history: Steps):
         """
         After a node is successfully executed, optionally adjust remaining steps
         in the plan using the DEFAULT_SUCCESS_REPLAN_PROMPT. If 'action' = 'none',
@@ -789,7 +808,7 @@ tool response : {tool_response}
             root_task=plan_graph.task,
             executed_plan=executed_plan,
             remaining_plan=remaining_plan,
-            current_node_name=node.name,
+            current_node_name=current_node.name,
         )
 
         self.logger.info("Calling model for success replan instructions...")
@@ -809,7 +828,7 @@ tool response : {tool_response}
                 to_remove = []  # immediate next(s)
                 # Optionally, you might do a BFS/DFS to remove all reachable children, if desired:
                 # gather all reachable nodes in future
-                stack = [node.next_node]
+                stack = [current_node.next_node]
                 visited = set()
                 while stack:
                     nxt = stack.pop()
@@ -843,6 +862,8 @@ tool response : {tool_response}
                         node.max_attempts = (
                             mod.max_attempts if mod.max_attempts else node.max_attempts
                         )
+                        node.use_tool = mod.use_tool
+                        node.tool_name = mod.tool_name
                         node.category = mod.category if mod.category else node.category
                         plan_graph.add_node(node)
                         to_remove.remove(mod.name)
@@ -854,10 +875,10 @@ tool response : {tool_response}
                     del plan_graph.nodes[rm_name]
                 # 3) Link the current node to the first new node if it exists
                 if adjustments.modifications:
-                    node.next_node = adjustments.modifications[0].name
+                    current_node.next_node = adjustments.modifications[0].name
                 else:
                     # If no new steps were added, then the plan ends here
-                    node.next_node = ""
+                    current_node.next_node = ""
                 self.logger.info(
                     "Successfully applied 'replan' modifications after success."
                 )
@@ -968,6 +989,8 @@ tool response : {tool_response}
                     node.max_attempts = (
                         mod.max_attempts if mod.max_attempts else node.max_attempts
                     )
+                    node.use_tool = mod.use_tool
+                    node.tool_name = mod.tool_name
                     node.category = mod.category if mod.category else node.category
                     self.plan_graph.add_node(node)
                 else:

@@ -4,7 +4,6 @@ from abc import abstractmethod
 from typing import List, Optional
 from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
-from agent_core.entities.steps import Steps
 from agent_core.executors.base_executor import BaseExecutor
 
 
