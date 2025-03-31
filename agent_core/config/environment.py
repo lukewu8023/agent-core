@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from dotenv import load_dotenv
 from pydantic import HttpUrl, AfterValidator, Field
@@ -23,3 +23,6 @@ class Environment(BaseSettings):
     openai_api_base: HttpUrlStr = Field(validation_alias="openai_api_base")
     openai_api_key: str = Field(validation_alias="openai_api_key")
     default_model: str = Field(validation_alias="default_model")
+
+    max_failure_breakdown_time: Optional[int] = Field(0, validation_alias="max_failure_breakdown_time")
+    max_failure_replan_time: Optional[int] = Field(0, validation_alias="max_failure_replan_time")
