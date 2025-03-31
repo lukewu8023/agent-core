@@ -289,8 +289,9 @@ class PlanGraph:
     knowledge: str = ""
     categories: Optional[List[str]] = None
     task: str = ""
-    tools: str = ""  # textual representation from tool_knowledge_format
+    tool_knowledge: str = ""  # textual representation from tool_knowledge_format
     prompt: str = ""  # The replan prompt if needed
+    tools: Optional[Dict[str, BaseTool]] = None
 
     def add_node(self, node: Node):
         self.nodes[node.name] = node
@@ -471,14 +472,14 @@ class GraphPlanner(BasePlanner):
         plan_graph.knowledge = knowledge
         plan_graph.categories = categories
         plan_graph.task = task
-        plan_graph.tools = tool_knowledge_format(tools)
+        plan_graph.tool_knowledge= tool_knowledge_format(tools)
 
         tool = None
         previous_node = None
         tool_map = {}
         if tools is not None:
             tool_map = {tool.name: tool for tool in tools}
-
+            plan_graph.tools = tool_map
         for idx, step in enumerate(plan, start=1):
             node_name = chr(65 + idx - 1)  # e.g., A, B, C...
             next_node_name = chr(65 + idx) if idx < len(plan) else ""
@@ -684,6 +685,7 @@ class GraphPlanner(BasePlanner):
 
         tool_description = ""
         if node.use_tool:
+            node.tool = self.plan_graph.tools.get(node.tool_name)
             if node.tool is None:
                 self.logger.warning(
                     f"Node {node.name} indicates 'use_tool' but 'tool' is None. Skipping tool usage details."
@@ -803,7 +805,7 @@ tool response : {tool_response}
         final_prompt = self._success_replan_prompt.format(
             background=plan_graph.background,
             knowledge=plan_graph.knowledge,
-            tools_knowledge=plan_graph.tools,
+            tools_knowledge=plan_graph.tool_knowledge,
             categories_str=categories_str,
             root_task=plan_graph.task,
             executed_plan=executed_plan,
@@ -898,7 +900,7 @@ tool response : {tool_response}
         final_prompt = plan_graph.prompt.format(
             background=plan_graph.background,
             knowledge=plan_graph.knowledge,
-            tools_knowledge=plan_graph.tools,
+            tools_knowledge=plan_graph.tool_knowledge,
             root_task=plan_graph.task,
             context_str=self.context_manager.context_to_str(),
             categories_str=(
