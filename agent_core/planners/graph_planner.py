@@ -383,15 +383,6 @@ def pass_threshold(score, node_threshold, evaluator_threshold):
         return score >= evaluator_threshold
 
 
-def determine_disable_evaluator(action: str, execution_history: Steps):
-    count = 0
-    for trace_step in execution_history.trace_steps:
-        if trace_step.action == f"failure {action}":
-            count += 1
-    time = os.getenv(f"MAX_FAILURE_{action.upper()}_TIME")
-    return time != 0 and count >= int(time)
-
-
 class GraphPlanner(BasePlanner):
     """
     A planner that builds a PlanGraph, uses context, and executes node-based logic with re-planning.
@@ -615,10 +606,6 @@ class GraphPlanner(BasePlanner):
                                 "replan_history": adjustments,
                             }
                         )
-                        disable_evaluator = self.apply_adjustments_to_plan(node.name, adjustments, execution_history)
-                        if disable_evaluator:
-                            evaluators_enabled = False
-                            continue
                         self.logger.info(
                             f"New plan after adjusted: {self.plan_graph.nodes}"
                         )
@@ -957,24 +944,19 @@ tool response : {tool_response}
 
     def apply_adjustments_to_plan(self, node_name: str, adjustments: Adjustments,
                                   execution_history: Steps):
-        if determine_disable_evaluator(adjustments.action, execution_history):
-            self.logger.warning(
-                f"Max breakdown or replan, disabled evaluator."
-            )
-            return True
         if adjustments.action == "breakdown":
             original_node = self.plan_graph.nodes.pop(node_name)
             if not original_node:
                 self.logger.warning(
                     f"No original node found for Name ='{node_name}'. Skipping."
                 )
-                return True
+                return
             new_subtasks = adjustments.new_subtasks
             if not new_subtasks:
                 self.logger.warning(
                     "No 'new_subtasks' found for breakdown action. Skipping."
                 )
-                return True
+                return
             # Insert new subtasks as nodes
             for st in new_subtasks:
                 new_subtask_name = st.name
@@ -1023,9 +1005,6 @@ tool response : {tool_response}
                     description="Automatically added restart node",
                 )
                 self.plan_graph.add_node(new_node)
-
         else:
             self.logger.warning(f"Unknown action in adjustments: {adjustments.action}")
-            return True
         execution_history.adjust_plan(f"failure {adjustments.action}", self.plan_graph.to_plan(), adjustments)
-        return False
