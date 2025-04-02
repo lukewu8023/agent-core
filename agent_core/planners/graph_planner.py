@@ -1,7 +1,6 @@
 # planners/graph_planner.py
 
 import copy
-import os
 
 from agent_core.evaluators import BaseEvaluator
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
@@ -117,17 +116,19 @@ If Task Use Tool is `True`, process using tools,
 For each tool argument, based on context and human's question to generate arguments value according to the argument description.
 
 **Instructions**
-- Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of two actions:
+- Analyze the Current Plan, Execution History, Failure Reason and Replanning History to decide on one of three actions:
     1. **breakdown**: Break down the task of failed node {current_node_name} into smaller subtasks.
     2. **replan**: Go back to a previous node for replanning, 
+    3. **dead**: Current information cannot resolve task, like dead loop, missing tool or knowledge, too many breakdown or replan still not work
 - If you choose **breakdown**, provide detailed descriptions of the new subtasks, only breakdown the current (failed) node, otherwise it should be replan. ex: if current node is B, breakdown nodes should be B.1, B.2, if current node is B.2, breakdown nodes should be B.2.1, B.2.2... and make the all nodes as chain eventually.
 - If you choose **replan**, specify which node to return to and suggest any modifications to the plan after that node, do not repeat previous failure replanning in the Replanning History.
+- If you choose **dead**, explanation of your reasoning, why cannot resolve.
 - The name generated following the naming convention as A.1, B.1.2, C.2.5.2, new name (not next_nodes) generation example: current: B > new sub: B.1, current: B.2.2.2 > new sub: B.2.2.2.1
 - Return your response in the following JSON format (do not include any additional text):
 
 ```json
 {{
-    "action": "breakdown" or "replan",
+    "action": "breakdown" or "replan" or "dead",
     "new_subtasks": [  // Required if action is "breakdown"
         {{
             "name": "...", // unique task name
@@ -606,6 +607,7 @@ class GraphPlanner(BasePlanner):
                                 "replan_history": adjustments,
                             }
                         )
+                        self.apply_adjustments_to_plan(node.name, adjustments, execution_history)
                         self.logger.info(
                             f"New plan after adjusted: {self.plan_graph.nodes}"
                         )
@@ -929,6 +931,9 @@ tool response : {tool_response}
             else:
                 print("No subtasks found for breakdown action. Aborting execution.")
                 return None
+        elif adjustments.action == "dead":
+            self.logger.warning("Dead Loop. Aborting execution.")
+            return None
         else:
             self.logger.warning("Unknown action. Aborting execution.")
             return None
@@ -1005,6 +1010,8 @@ tool response : {tool_response}
                     description="Automatically added restart node",
                 )
                 self.plan_graph.add_node(new_node)
+        elif adjustments.action == "dead":
+            self.logger.warning(f"Cannot resolve the task, dead Loop find")
         else:
             self.logger.warning(f"Unknown action in adjustments: {adjustments.action}")
         execution_history.adjust_plan(f"failure {adjustments.action}", self.plan_graph.to_plan(), adjustments)
