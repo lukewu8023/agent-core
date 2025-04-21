@@ -115,9 +115,7 @@ class GenericPlanner(BasePlanner):
         self.logger.info(f"Executing plan with {len(plan)} steps.")
 
         for idx, step in enumerate(plan, 1):
-            context_section = (
-                context_manager.context_to_str() if context_manager else ""
-            )
+            context_section = context_manager.context_to_str()
             final_prompt = f"""
                 {context_section}\n
                 **Background**

@@ -3,11 +3,12 @@
 import json
 import datetime
 import os
+import re
 from typing import Optional, List
 
 from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
-from agent_core.entities.steps import Steps, Step
+from agent_core.entities.steps import Steps, Step, Summary
 from agent_core.models.model_registry import ModelRegistry
 from agent_core.planners.base_planner import BasePlanner
 from agent_core.utils.context_manager import ContextManager
@@ -138,7 +139,7 @@ class Agent(AgentBasic):
         )
         agent_result = self.get_execution_result_summary()
         self.get_token()
-        return agent_result
+        return agent_result.output_result
 
     def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
@@ -239,16 +240,16 @@ class Agent(AgentBasic):
         final_response = self._model.process(final_response_prompt)
         return str(final_response)
 
-    def get_execution_result_summary(self) -> str:
+    def get_execution_result_summary(self) -> Summary:
         """
         Produce an overall summary describing how the solution was completed,
         using the LLM (agent's model) to format the final explanation if desired.
         """
         if not self._execution_history:
-            return (
-                "No direct step-based execution history recorded. "
+            return Summary(
+                summary="", output_result=("No direct step-based execution history recorded. "
                 "(If you used GraphPlanner, the node-based execution is stored inside the planner.)"
-            )
+            ), conclusion="")
 
         history_text = self._execution_history.execution_history_to_str()
         final_prompt = self.summary_prompt.format(history_text=history_text)
@@ -256,8 +257,9 @@ class Agent(AgentBasic):
         self.logger.info("Generating execution result summary.")
         summary_response = self._model.process(final_prompt)
         cleaned = summary_response.replace("```json", "").replace("```", "").strip()
-        self._execution_history.summary = cleaned
-        return cleaned
+        summary = Summary.model_validate_json(cleaned)
+        self._execution_history.summary = summary
+        return summary
 
     def get_execution_reasoning(self):
         """
@@ -410,6 +412,12 @@ class Agent(AgentBasic):
             template_key, "Taking step {step_name}."
         )
 
+        result = step.result
+        if step.use_tool:
+            pattern = r"tool description: (.*?)tool arguments: (.*?)tool response : (.*)"
+            match = re.search(pattern, step.result, re.DOTALL)
+            if match:
+                result = match.group(3).strip()
         # Format the template with step data
         return template.format(step_name=step.name, step_description=step.description, step_result=result,
                                step_suggestion=step.evaluator_result.suggestion)

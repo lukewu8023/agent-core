@@ -67,10 +67,17 @@ class TracePlan(BaseModel):
     adjustment: Optional[Any] = None
 
 
+class Summary(BaseModel):
+
+    summary: Optional[str] = ""
+    output_result: Optional[Any] = ""
+    conclusion: Optional[str] = ""
+
+
 class Steps(BaseModel):
 
     steps: List[Step] = field(default_factory=list)
-    summary: str = ""
+    summary: Summary = Summary()
     input_tokens: int = 0
     output_tokens: int = 0
     trace_steps: List[Step] = field(default_factory=list)

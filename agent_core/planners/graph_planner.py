@@ -17,6 +17,8 @@ from typing import List, Dict, Optional, Any
 from langchain_core.tools import BaseTool
 from agent_core.utils.logger import get_logger
 
+JSON_FORMAT = "```json"
+
 DEFAULT_EXECUTE_PROMPT = r"""
 Based on the below background, context and failed history, process the following current task, being mindful not to repeat or reintroduce errors from previous failed attempts, and respond with those suggestions:
 
@@ -443,12 +445,12 @@ class GraphPlanner(BasePlanner):
             self.executor.execute_prompt = value
 
     def plan(
-        self,
-        task: str,
-        tools: Optional[List[BaseTool]],
-        knowledge: str = "",
-        background: str = "",
-        categories: Optional[List[str]] = None,
+            self,
+            task: str,
+            tools: Optional[List[BaseTool]],
+            knowledge: str = "",
+            background: str = "",
+            categories: Optional[List[str]] = None,
     ) -> List[Node]:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
@@ -475,7 +477,7 @@ class GraphPlanner(BasePlanner):
         plan_graph.knowledge = knowledge
         plan_graph.categories = categories
         plan_graph.task = task
-        plan_graph.tool_knowledge= tool_knowledge_format(tools)
+        plan_graph.tool_knowledge = tool_knowledge_format(tools)
 
         tool = None
         previous_node = None
@@ -508,14 +510,14 @@ class GraphPlanner(BasePlanner):
         return self.plan_graph.to_plan()
 
     def execute_plan(
-        self,
-        plan: List[Step],
-        task: str,
-        execution_history: Steps,
-        evaluators_enabled: bool,
-        evaluators: dict,
-        context_manager: ContextManager = ContextManager(),
-        background: str = "",
+            self,
+            plan: List[Step],
+            task: str,
+            execution_history: Steps,
+            evaluators_enabled: bool,
+            evaluators: dict,
+            context_manager: ContextManager = ContextManager(),
+            background: str = "",
     ):
         """
         Executes the PlanGraph node by node.
@@ -543,14 +545,13 @@ class GraphPlanner(BasePlanner):
                 node, evaluators_enabled, task, background, evaluators, None
             )
             if pass_threshold(
-                step.evaluator_result.score, node.evaluation_threshold, threshold
+                    step.evaluator_result.score, node.evaluation_threshold, threshold
             ):
                 if node.evaluation_threshold:
                     self.logger.info(
                         f"Actual Node Threshold: {node.evaluation_threshold}, Decision: Accept Output"
                     )
                 self.success_result(node, execution_history, step)
-                continue
             else:
                 execution_history.add_retry_step(step)
                 retry = True
@@ -566,7 +567,7 @@ class GraphPlanner(BasePlanner):
                     )
                     evaluator_result = attempt_step.evaluator_result
                     if pass_threshold(
-                        evaluator_result.score, node.evaluation_threshold, threshold
+                            evaluator_result.score, node.evaluation_threshold, threshold
                     ):
                         if node.evaluation_threshold:
                             self.logger.info(
@@ -581,7 +582,6 @@ class GraphPlanner(BasePlanner):
                         retry = True
                 if not retry:
                     self.success_result(node, execution_history, step)
-                    continue
                 else:
                     self.logger.warning(f"Replanning is needed at Node {node.name}")
                     failure_info = self._prepare_failure_info(
@@ -589,7 +589,7 @@ class GraphPlanner(BasePlanner):
                     )
                     replan_response = self._failure_replan(pg, failure_info)
                     cleaned = (
-                        replan_response.replace("```json", "")
+                        replan_response.replace(JSON_FORMAT, "")
                         .replace("```", "")
                         .strip()
                     )
@@ -627,13 +627,13 @@ class GraphPlanner(BasePlanner):
         self.logger.info("Task execution completed using GraphPlanner")
 
     def execute(
-        self,
-        node,
-        evaluators_enabled,
-        task,
-        background,
-        evaluators,
-        failure_step: Optional[List[Step]],
+            self,
+            node,
+            evaluators_enabled,
+            task,
+            background,
+            evaluators,
+            failure_step: Optional[List[Step]],
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -663,13 +663,13 @@ class GraphPlanner(BasePlanner):
         self.plan_graph.current_node_name = node.next_node
 
     def _execute_node(
-        self,
-        node: Node,
-        model_name: str,
-        task: str,
-        background: str,
-        step: Step,
-        failure_step: List[Step],
+            self,
+            node: Node,
+            model_name: str,
+            task: str,
+            background: str,
+            step: Step,
+            failure_step: List[Step],
     ) -> str:
         """
         Build prompt + call the LLM. If 'use_tool', invoke the tool.
@@ -681,25 +681,12 @@ class GraphPlanner(BasePlanner):
         if failure_step:
             for f_step in failure_step:
                 failure_info = (
-                    failure_info
-                    + f"Result : {f_step.result}, Result Suggestion: {f_step.evaluator_result.suggestion}\n"
+                        failure_info
+                        + f"Result : {f_step.result}, Result Suggestion: {f_step.evaluator_result.suggestion}\n"
                 )
         node.current_attempts += 1
 
-        tool_description = ""
-        if node.use_tool:
-            node.tool = self.plan_graph.tools.get(node.tool_name)
-            if node.tool is None:
-                self.logger.warning(
-                    f"Node {node.name} indicates 'use_tool' but 'tool' is None. Skipping tool usage details."
-                )
-            elif hasattr(node.tool, "args_schema"):
-                tool_description = str(node.tool.args_schema.model_json_schema())
-            else:
-                self.logger.warning(
-                    f"Node {node.name} indicates 'use_tool' but the provided tool lacks 'args_schema'."
-                )
-                tool_description = f"[Tool: {node.tool_name}]"
+        tool_description = self.process_tool_description(node)
 
         # Node doesn't store a custom prompt, so we use self._execute_prompt
         final_prompt = self._execute_prompt.format(
@@ -716,7 +703,7 @@ class GraphPlanner(BasePlanner):
         # Use executor instead of direct model call
         response = self.executor.execute(final_prompt, model_name)
 
-        cleaned = response.replace("```json", "").replace("```", "").strip()
+        cleaned = response.replace(JSON_FORMAT, "").replace("```", "").strip()
 
         try:
             data = ExecuteResult.model_validate_json(cleaned)
@@ -743,14 +730,31 @@ tool response : {tool_response}
         step.result = response
         return response
 
+    def process_tool_description(self, node: Node):
+        tool_description = ""
+        if node.use_tool:
+            node.tool = self.plan_graph.tools.get(node.tool_name)
+            if node.tool is None:
+                self.logger.warning(
+                    f"Node {node.name} indicates 'use_tool' but 'tool' is None. Skipping tool usage details."
+                )
+            elif hasattr(node.tool, "args_schema"):
+                tool_description = str(node.tool.args_schema.model_json_schema())
+            else:
+                self.logger.warning(
+                    f"Node {node.name} indicates 'use_tool' but the provided tool lacks 'args_schema'."
+                )
+                tool_description = f"[Tool: {node.tool_name}]"
+        return tool_description
+
     def _evaluate_node(
-        self,
-        node: Node,
-        root_task: str,
-        result: str,
-        evaluators_enabled: bool,
-        evaluators: Dict[str, BaseEvaluator],
-        background: str,
+            self,
+            node: Node,
+            root_task: str,
+            result: str,
+            evaluators_enabled: bool,
+            evaluators: Dict[str, BaseEvaluator],
+            background: str,
     ) -> (EvaluatorResult, float):
         """
         evaluate the node output using agent's evaluator if enabled.
@@ -774,7 +778,7 @@ tool response : {tool_response}
         return evaluator_result, evaluator.evaluation_threshold
 
     def _prepare_failure_info(
-        self, execute_history: Steps, current_failed: Step
+            self, execute_history: Steps, current_failed: Step
     ) -> Dict:
         """
         Produce the context for replan prompt.
@@ -819,7 +823,7 @@ tool response : {tool_response}
         self.logger.info("Calling model for success replan instructions...")
         response = self._model.process(final_prompt)
         self.logger.debug(f"Success replan response:\n{response}")
-        cleaned = response.replace("```json", "").replace("```", "").strip()
+        cleaned = response.replace(JSON_FORMAT, "").replace("```", "").strip()
         try:
             adjustments = Adjustments.model_validate_json(cleaned)
             if adjustments.action == "none":
@@ -828,53 +832,11 @@ tool response : {tool_response}
             elif adjustments.action == "replan":
                 self.logger.info("Replanning the un-executed steps after success...")
                 self.logger.info(f"New Steps: {cleaned}")
-                # 1) Remove all un-executed steps from this node onward.
-                #    This example removes any nodes listed in node.next_nodes, plus any "chain" from them.
-                to_remove = []  # immediate next(s)
-                # Optionally, you might do a BFS/DFS to remove all reachable children, if desired:
-                # gather all reachable nodes in future
-                stack = [current_node.next_node]
-                visited = set()
-                while stack:
-                    nxt = stack.pop()
-                    if nxt in visited:
-                        continue
-                    visited.add(nxt)
-                    if nxt in plan_graph.nodes:
-                        # add all *that* node’s next_nodes to stack
-                        stack.extend(plan_graph.nodes[nxt].next_node)
-                        to_remove.append(nxt)
+                to_remove = self.collect_remove_node(current_node)
 
                 # 2) Add each modification as a new node (fully replacing the steps).
-                for mod in adjustments.modifications:
-                    if not mod.name:
-                        self.logger.warning(
-                            f"Skipping modification with no name: {mod}"
-                        )
-                        continue
-                    if mod.name in plan_graph.nodes:
-                        node = plan_graph.nodes.pop(mod.name)
-                        node.current_attempts = 0
-                        node.description = (
-                            mod.description if mod.description else node.description
-                        )
-                        node.next_node = mod.next_node if mod.next_node else node.next_node
-                        node.evaluation_threshold = (
-                            mod.evaluation_threshold
-                            if mod.evaluation_threshold
-                            else node.evaluation_threshold
-                        )
-                        node.max_attempts = (
-                            mod.max_attempts if mod.max_attempts else node.max_attempts
-                        )
-                        node.use_tool = mod.use_tool
-                        node.tool_name = mod.tool_name
-                        node.category = mod.category if mod.category else node.category
-                        plan_graph.add_node(node)
-                        to_remove.remove(mod.name)
-                    else:
-                        # If the node does not exist, create a new Node
-                        plan_graph.add_node(mod)
+                self.process_mod_node(adjustments, plan_graph, to_remove)
+
                 # Actually remove them from the plan
                 for rm_name in to_remove:
                     del plan_graph.nodes[rm_name]
@@ -892,10 +854,57 @@ tool response : {tool_response}
                 self.logger.warning(
                     f"Unknown action '{adjustments.action}' in success replan. No changes made."
                 )
-        except Exception as e:
+        except Exception:
             self.logger.warning(
                 "Post-success replan response is not valid JSON. Skipping replan."
             )
+
+    def process_mod_node(self, adjustments: Adjustments, plan_graph: PlanGraph, to_remove: List):
+        # 2) Add each modification as a new node (fully replacing the steps).
+        for mod in adjustments.modifications:
+            if not mod.name:
+                self.logger.warning(
+                    f"Skipping modification with no name: {mod}"
+                )
+                continue
+            if mod.name in plan_graph.nodes:
+                node = plan_graph.nodes.pop(mod.name)
+                node.current_attempts = 0
+                node.description = (
+                    mod.description if mod.description else node.description
+                )
+                node.next_node = mod.next_node if mod.next_node else node.next_node
+                node.evaluation_threshold = (
+                    mod.evaluation_threshold
+                    if mod.evaluation_threshold
+                    else node.evaluation_threshold
+                )
+                node.max_attempts = (
+                    mod.max_attempts if mod.max_attempts else node.max_attempts
+                )
+                node.use_tool = mod.use_tool
+                node.tool_name = mod.tool_name
+                node.category = mod.category if mod.category else node.category
+                plan_graph.add_node(node)
+                to_remove.remove(mod.name)
+            else:
+                # If the node does not exist, create a new Node
+                plan_graph.add_node(mod)
+
+    def collect_remove_node(self, current_node: Node):
+        to_remove = []
+        stack = [current_node.next_node]
+        visited = set()
+        while stack:
+            nxt = stack.pop()
+            if nxt in visited:
+                continue
+            visited.add(nxt)
+            if nxt in self.plan_graph.nodes:
+                # add all *that* node’s next_nodes to stack
+                stack.extend(self.plan_graph.nodes[nxt].next_node)
+                to_remove.append(nxt)
+        return to_remove
 
     def _failure_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
         execution_plan = plan_graph.execution_plan()
@@ -950,68 +959,74 @@ tool response : {tool_response}
     def apply_adjustments_to_plan(self, node_name: str, adjustments: Adjustments,
                                   execution_history: Steps):
         if adjustments.action == "breakdown":
-            original_node = self.plan_graph.nodes.pop(node_name)
-            if not original_node:
-                self.logger.warning(
-                    f"No original node found for Name ='{node_name}'. Skipping."
-                )
-                return
-            new_subtasks = adjustments.new_subtasks
-            if not new_subtasks:
-                self.logger.warning(
-                    "No 'new_subtasks' found for breakdown action. Skipping."
-                )
-                return
-            # Insert new subtasks as nodes
-            for st in new_subtasks:
-                new_subtask_name = st.name
-                if not new_subtask_name:
-                    self.logger.warning(f"No 'name' in subtask: {st}. Skipping.")
-                    continue
-                self.plan_graph.add_node(st)
-            # Update references to the removed node
-            for nid, node in self.plan_graph.nodes.items():
-                if node_name == node.next_node:
-                    node.next_node = new_subtasks[0].name
+            self.apply_breakdown_to_plan(node_name, adjustments)
         elif adjustments.action == "replan":
-            restart_node_name = adjustments.restart_node_name
-            modifications = (
-                adjustments.modifications if adjustments.modifications else []
-            )
-            for mod in modifications:
-                if not mod.name:
-                    self.logger.warning(f"No 'Name' in modification: {mod}. Skipping.")
-                    continue
-                if mod.name in self.plan_graph.nodes:
-                    node = self.plan_graph.nodes.pop(mod.name)
-                    node.current_attempts = 0
-                    node.description = (
-                        mod.description if mod.description else node.description
-                    )
-                    node.next_node = mod.next_node if mod.next_node else node.next_node
-                    node.evaluation_threshold = (
-                        mod.evaluation_threshold
-                        if mod.evaluation_threshold
-                        else node.evaluation_threshold
-                    )
-                    node.max_attempts = (
-                        mod.max_attempts if mod.max_attempts else node.max_attempts
-                    )
-                    node.use_tool = mod.use_tool
-                    node.tool_name = mod.tool_name
-                    node.category = mod.category if mod.category else node.category
-                    self.plan_graph.add_node(node)
-                else:
-                    # If the node does not exist, create a new Node
-                    self.plan_graph.add_node(mod)
-            if restart_node_name and restart_node_name not in self.plan_graph.nodes:
-                new_node = Node(
-                    name=restart_node_name,
-                    description="Automatically added restart node",
-                )
-                self.plan_graph.add_node(new_node)
+            self.apply_replan_to_plan(adjustments)
         elif adjustments.action == "dead":
             self.logger.warning(f"Cannot resolve the task, dead Loop find")
         else:
             self.logger.warning(f"Unknown action in adjustments: {adjustments.action}")
         execution_history.adjust_plan(f"failure {adjustments.action}", self.plan_graph.to_plan(), adjustments)
+
+    def apply_breakdown_to_plan(self, node_name: str, adjustments: Adjustments):
+        original_node = self.plan_graph.nodes.pop(node_name)
+        if not original_node:
+            self.logger.warning(
+                f"No original node found for Name ='{node_name}'. Skipping."
+            )
+            return
+        new_subtasks = adjustments.new_subtasks
+        if not new_subtasks:
+            self.logger.warning(
+                "No 'new_subtasks' found for breakdown action. Skipping."
+            )
+            return
+        # Insert new subtasks as nodes
+        for st in new_subtasks:
+            new_subtask_name = st.name
+            if not new_subtask_name:
+                self.logger.warning(f"No 'name' in subtask: {st}. Skipping.")
+                continue
+            self.plan_graph.add_node(st)
+        # Update references to the removed node
+        for nid, node in self.plan_graph.nodes.items():
+            if node_name == node.next_node:
+                node.next_node = new_subtasks[0].name
+
+    def apply_replan_to_plan(self, adjustments: Adjustments):
+        restart_node_name = adjustments.restart_node_name
+        modifications = (
+            adjustments.modifications if adjustments.modifications else []
+        )
+        for mod in modifications:
+            if not mod.name:
+                self.logger.warning(f"No 'Name' in modification: {mod}. Skipping.")
+                continue
+            if mod.name in self.plan_graph.nodes:
+                node = self.plan_graph.nodes.pop(mod.name)
+                node.current_attempts = 0
+                node.description = (
+                    mod.description if mod.description else node.description
+                )
+                node.next_node = mod.next_node if mod.next_node else node.next_node
+                node.evaluation_threshold = (
+                    mod.evaluation_threshold
+                    if mod.evaluation_threshold
+                    else node.evaluation_threshold
+                )
+                node.max_attempts = (
+                    mod.max_attempts if mod.max_attempts else node.max_attempts
+                )
+                node.use_tool = mod.use_tool
+                node.tool_name = mod.tool_name
+                node.category = mod.category if mod.category else node.category
+                self.plan_graph.add_node(node)
+            else:
+                # If the node does not exist, create a new Node
+                self.plan_graph.add_node(mod)
+        if restart_node_name and restart_node_name not in self.plan_graph.nodes:
+            new_node = Node(
+                name=restart_node_name,
+                description="Automatically added restart node",
+            )
+            self.plan_graph.add_node(new_node)

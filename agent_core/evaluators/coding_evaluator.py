@@ -5,41 +5,10 @@ from typing import Optional, List
 from .base_evaluator import BaseEvaluator
 from .entities.evaluator_result import EvaluatorResult
 
-
-def generate_improvement_suggestions(scores: List[tuple]) -> str:
-    """
-    Generate improvement suggestions based on the scores. For each applicable criterion with a score below 3,
-    provide a specific suggestion.
-    """
-    suggestion_dict = {
-        "Requirements Coverage": "Ensure the code fully addresses and implements the requirements.",
-        "Correctness": "Review the logic and test the code to verify its correctness.",
-        "Code Style and Conventions": "Follow standard coding practices and style guidelines.",
-        "Readability and Documentation": "Improve code organization and add meaningful comments and documentation.",
-        "Efficiency and Performance": "Optimize algorithms and resource usage for better performance.",
-        "Maintainability and Scalability": "Refactor the code to enhance maintainability and facilitate future extensions.",
-        "Security and Robustness": "Implement proper error handling and security measures to cover edge cases.",
-        "Testability": "Design the code structure to facilitate unit testing and overall verification.",
-    }
-
-    suggestions = []
-    for criterion, score_value in scores:
-        if score_value < 3:
-            suggestion = suggestion_dict.get(
-                criterion, f"Consider improving {criterion}."
-            )
-            suggestions.append(f"- {criterion}: {suggestion}")
-
-    if not suggestions:
-        suggestions.append(
-            "Review the overall implementation to better meet the requirements and quality standards."
-        )
-
-    return "\n".join(suggestions)
+reject_code: str = "Reject Code"
 
 
-class CodingEvaluator(BaseEvaluator):
-    DEFAULT_PROMPT = """\
+DEFAULT_PROMPT = """\
 You are an expert code reviewer with extensive experience in software engineering and multiple programming languages.
 Your task is to evaluate the provided AI-generated code based on the following comprehensive criteria. Note: The provided code may be a complete implementation or just a code fragment. If a particular criterion is not applicable, please mark it as "N/A" and exclude it from the overall scoring.
 
@@ -82,6 +51,41 @@ Ensure the output is only the JSON string, with no additional characters, header
 **Evaluation (JSON Format):**
 """
 
+
+def generate_improvement_suggestions(scores: List[tuple]) -> str:
+    """
+    Generate improvement suggestions based on the scores. For each applicable criterion with a score below 3,
+    provide a specific suggestion.
+    """
+    suggestion_dict = {
+        "Requirements Coverage": "Ensure the code fully addresses and implements the requirements.",
+        "Correctness": "Review the logic and test the code to verify its correctness.",
+        "Code Style and Conventions": "Follow standard coding practices and style guidelines.",
+        "Readability and Documentation": "Improve code organization and add meaningful comments and documentation.",
+        "Efficiency and Performance": "Optimize algorithms and resource usage for better performance.",
+        "Maintainability and Scalability": "Refactor the code to enhance maintainability and facilitate future extensions.",
+        "Security and Robustness": "Implement proper error handling and security measures to cover edge cases.",
+        "Testability": "Design the code structure to facilitate unit testing and overall verification.",
+    }
+
+    suggestions = []
+    for criterion, score_value in scores:
+        if score_value < 3:
+            suggestion = suggestion_dict.get(
+                criterion, f"Consider improving {criterion}."
+            )
+            suggestions.append(f"- {criterion}: {suggestion}")
+
+    if not suggestions:
+        suggestions.append(
+            "Review the overall implementation to better meet the requirements and quality standards."
+        )
+
+    return "\n".join(suggestions)
+
+
+class CodingEvaluator(BaseEvaluator):
+
     def __init__(
         self,
         model_name: Optional[str] = None,
@@ -103,7 +107,7 @@ Ensure the output is only the JSON string, with no additional characters, header
         except Exception as e:
             self.logger.error("Error during model evaluation: %s", e)
             return EvaluatorResult(
-                "Reject Code",
+                reject_code,
                 0,
                 {
                     "score_breakdown": [],
@@ -122,7 +126,7 @@ Ensure the output is only the JSON string, with no additional characters, header
             "total_applicable_score": total_score,
         }
 
-        if decision == "Reject Code":
+        if decision == reject_code:
             improvement_suggestions = generate_improvement_suggestions(scores)
             details["improvement_suggestions"] = improvement_suggestions
         else:
@@ -131,7 +135,7 @@ Ensure the output is only the JSON string, with no additional characters, header
         return EvaluatorResult(decision, total_score, details)
 
     def default_prompt(self):
-        return self.DEFAULT_PROMPT
+        return DEFAULT_PROMPT
 
     def parse_scored_evaluation_response(self, evaluation_response: str):
         """
@@ -145,7 +149,7 @@ Ensure the output is only the JSON string, with no additional characters, header
             evaluation_data = json.loads(cleaned_evaluation_response)
         except json.JSONDecodeError:
             self.logger.error("Unable to parse the model's evaluation response.")
-            return "Reject Code", 0, []
+            return reject_code, 0, []
 
         scores = []
         total_score = 0
@@ -160,7 +164,7 @@ Ensure the output is only the JSON string, with no additional characters, header
 
         if applicable_criteria_count == 0:
             self.logger.warning("No valid criteria were parsed for evaluation.")
-            return "Reject Code", 0, scores
+            return reject_code, 0, scores
 
         # Check if any criterion scored below 3
         any_low_scores = any(score < 3 for _, score in scores)
@@ -169,7 +173,7 @@ Ensure the output is only the JSON string, with no additional characters, header
         decision = (
             "Accept Code"
             if average_score >= (5 * self.evaluation_threshold) and not any_low_scores
-            else "Reject Code"
+            else reject_code
         )
 
         return decision, total_score, scores
