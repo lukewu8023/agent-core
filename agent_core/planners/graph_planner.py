@@ -76,6 +76,7 @@ If task use tool is false, example:
    - Backslashes as `\\`
 6. Do NOT include extra escape sequences (e.g., avoid `\\\\` where `\\` is enough).
 7. The response must not contain trailing commas or missing brackets.
+8. Please make sure one step only use one tool one time, if need to use multiple tools or one tool multiple times, please separate them into different steps.
 """
 
 DEFAULT_FAILURE_REPLAN_PROMPT = """
