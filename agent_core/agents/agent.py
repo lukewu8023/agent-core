@@ -217,14 +217,10 @@ class Agent(AgentBasic):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         trace_name = f"logs/trace_{timestamp}.json"
         os.makedirs(os.path.dirname(trace_name), exist_ok=True)
-        # reasoning_name = f"log/reasoning_{timestamp}.json"
-        # os.makedirs(os.path.dirname(reasoning_name), exist_ok=True)
         with open(trace_name, "w", encoding="utf-8") as f:
             json.dump(
                 self.execution_history.model_dump(), f, indent=4, ensure_ascii=False
             )
-        # with open(reasoning_name, "w", encoding="utf-8") as f:
-        #     json.dump(self.get_execution_reasoning(), f, indent=4, ensure_ascii=False)
 
     @property
     def execution_responses(self) -> str:
@@ -278,7 +274,7 @@ class Agent(AgentBasic):
             not hasattr(self._execution_history, "trace_plan")
             or not self._execution_history.trace_plan
         ):
-            return "No execution reasoning available."
+            return []
 
         # Get the initial plan (plan_id = 1)
         initial_plan = self._execution_history.trace_plan.get(1)
@@ -302,42 +298,55 @@ class Agent(AgentBasic):
         # Process each step and add new plans when they appear
         current_plan_id = 1
         for step in steps:
-            # Check if this step triggered a plan change
-            if step.action.startswith("failure ") or step.action.startswith("success "):
-                next_plan_id = current_plan_id + 1
-                if next_plan_id in self._execution_history.trace_plan:
-                    # First add the reasoning for the current step
-                    narrative_parts.append(self._get_step_narrative(step))
 
-                    # Then describe the new plan using the appropriate template
-                    next_plan = self._execution_history.trace_plan[next_plan_id]
-                    if next_plan and next_plan.plan:
-                        plan_steps = "\n".join(
-                            [
-                                f"*Step {step.name}: {step.description}"
-                                for step in next_plan.plan
-                            ]
-                        )
-
-                        # Get plan narrative based on the step
-                        narrative_parts.append(
-                            self._get_plan_narrative(step=step, plan_steps=plan_steps)
-                        )
-                        current_plan_id = next_plan_id
-                        continue
-
-            # Add the standard step narrative
+            # First add the reasoning for the current step
             narrative_parts.append(self._get_step_narrative(step))
+            next_plan_id = current_plan_id + 1
 
-        # Join the narrative parts
-        reasoning_text = "\n".join(narrative_parts)
+            # Check if this step triggered a plan change
+            if (not step.action.startswith("failure ") and not step.action.startswith("success "))\
+                    or next_plan_id not in self._execution_history.trace_plan:
+                continue
 
-        # Log the reasoning process
-        self.logger.info(f"Execution reasoning: {reasoning_text}")
+            # Then describe the new plan using the appropriate template
+            next_plan = self._execution_history.trace_plan[next_plan_id]
+            if next_plan and next_plan.plan:
+                self.process_step(next_plan, narrative_parts, step)
+                current_plan_id = next_plan_id
 
-        return reasoning_text
+        return narrative_parts
 
-    def _get_plan_narrative(self, plan_steps, step=None, template_key=None):
+    def process_step(self, next_plan, narrative_parts, step):
+        plan_steps = "\n".join(
+            [
+                f"*Step {step.name}: {step.description}"
+                for step in next_plan.plan
+            ]
+        )
+        modifications = None
+        new_tasks = None
+        if next_plan.adjustment:
+            modifications = "\n".join(
+                [
+                    f"*Step {adjust.name}: {adjust.description}"
+                    for adjust in next_plan.adjustment.modifications
+                ]
+            )
+            new_tasks = "\n".join(
+                [
+                    f"*Step {adjust.name}: {adjust.description}"
+                    for adjust in next_plan.adjustment.new_subtasks
+                ]
+            )
+
+        # Get plan narrative based on the step
+        narrative_parts.append(
+            self._get_plan_narrative(step=step, plan_steps=plan_steps,
+                                     modifications=modifications, new_tasks=new_tasks)
+        )
+
+    def _get_plan_narrative(self, plan_steps, modifications=None, new_tasks=None,
+                            step=None, template_key=None):
         """
         Get a formatted plan narrative using the appropriate template.
 
@@ -365,7 +374,7 @@ class Agent(AgentBasic):
         template = PLAN_NARRATIVE_TEMPLATES.get(
             template_key, PLAN_NARRATIVE_TEMPLATES["replan"]
         )
-        return template.format(plan_steps=plan_steps)
+        return template.format(plan_steps=plan_steps, modifications=modifications, new_tasks=new_tasks)
 
     def _get_step_narrative(self, step):
         """
@@ -402,7 +411,8 @@ class Agent(AgentBasic):
         )
 
         # Format the template with step data
-        return template.format(step_name=step.name, step_description=step.description)
+        return template.format(step_name=step.name, step_description=step.description, step_result=result,
+                               step_suggestion=step.evaluator_result.suggestion)
 
     def get_token(self):
         input_tokens, output_tokens = ModelRegistry.get_token()

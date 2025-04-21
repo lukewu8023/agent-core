@@ -8,7 +8,9 @@ from langchain_core.tools import BaseTool
 import asyncio
 from autogen_agentchat.base import Response
 
+
 class PhaenixAgent(BaseChatAgent):
+
     def __init__(
             self,
             name: str,
@@ -59,10 +61,12 @@ class PhaenixAgent(BaseChatAgent):
                     args_schema=tool.args_schema
                 )
                 self.native_tool = tool
+
             def _run(self, *args, **kwargs):
                 return self.native_tool.execute(*args, **kwargs)
 
         self.core_agent.tools += [AutogenToolAdapter(t) for t in tools]
+
     async def on_messages(self, messages: Sequence[ChatMessage], cancellation_token: Any) -> Response:
 
         loop = asyncio.get_event_loop()
@@ -79,4 +83,5 @@ class PhaenixAgent(BaseChatAgent):
         )
 
     async def on_reset(self, cancellation_token: Any) -> None:
+        # no reset now
         pass
