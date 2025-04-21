@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from agent_core.config import Environment
 from agent_core.utils.logger import get_logger
 
-Environment()
-
 
 class BaseModel(ABC):
+
+    Environment()
 
     def __init__(self, input_tokens: int = 0, output_tokens: int = 0):
         self.name = self.name()

@@ -23,6 +23,8 @@ def get_logger(name="agent-core", log_level: str = None) -> logging.Logger:
 
     # If a log_level is specified, use it; otherwise use the framework default
     effective_level = log_level.upper() if log_level else os.getenv("AGENT_CORE_LOG_LEVEL")
+    if not effective_level:
+        effective_level = "WARNING"
     logger.setLevel(effective_level)
 
     return logger

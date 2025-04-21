@@ -4,7 +4,6 @@ from agent_core.agents.autogen_agent import PhaenixAgent
 from autogen_agentchat.messages import TextMessage
 from agent_core.agents import Agent
 from langchain_core.tools import BaseTool
-from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 

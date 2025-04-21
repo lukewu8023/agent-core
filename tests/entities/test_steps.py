@@ -1,5 +1,5 @@
 import pytest
-from agent_core.entities.steps import Step, Steps, TracePlan
+from agent_core.entities.steps import Step, Steps, TracePlan, Summary
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 
 
@@ -125,7 +125,7 @@ class TestSteps:
         steps = Steps()
 
         assert steps.steps == []
-        assert steps.summary == ""
+        assert steps.summary == Summary(summary='', output_result='', conclusion='')
         assert steps.input_tokens == 0
         assert steps.output_tokens == 0
         assert steps.trace_steps == []

@@ -1,12 +1,10 @@
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
-import json
-import datetime
 
 from agent_core.agents.agent import Agent
 from agent_core.planners.base_planner import BasePlanner
 from agent_core.evaluators import BaseEvaluator
-from agent_core.entities.steps import Steps, Step
+from agent_core.entities.steps import Steps, Step, Summary
 from agent_core.utils.context_manager import ContextManager
 
 
@@ -29,8 +27,8 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def agent(mock_model):
     with patch("agent_core.models.model_registry.ModelRegistry.load_models"), patch(
-        "agent_core.models.model_registry.ModelRegistry.get_model",
-        return_value=mock_model,
+            "agent_core.models.model_registry.ModelRegistry.get_model",
+            return_value=mock_model,
     ):
         agent = Agent()
         agent.tools = [MagicMock()]
@@ -73,6 +71,7 @@ class TestAgentExecution:
         assert len(agent.execution_history.steps) > 0
 
     def test_execute_with_planner(self, agent, mock_model, mock_planner):
+        mock_model.process.return_value = '{"summary": "test"}'
         agent.planner = mock_planner
         task = "test task"
         result = agent.execute(task)
@@ -126,7 +125,7 @@ class TestExecutionHistory:
         agent._execution_history.model_dump.return_value = {"test": "data"}
 
         with patch("builtins.open", mock_open()) as mock_file, patch(
-            "os.makedirs"
+                "os.makedirs"
         ), patch("json.dump"):
             agent.export_execution_trace()
             mock_file.assert_called()
@@ -137,9 +136,9 @@ class TestResultGeneration:
         mock_model.process.return_value = '{"summary": "test"}'
         agent._execution_history = MagicMock()
         agent._execution_history.execution_history_to_str.return_value = "test history"
-
+        summary = Summary(summary='test', output_result='', conclusion='')
         result = agent.get_execution_result_summary()
-        assert "test" in result
+        assert summary == result
         mock_model.process.assert_called_once()
 
     def test_get_final_response(self, agent, mock_model):
@@ -153,7 +152,7 @@ class TestResultGeneration:
 
     def test_get_execution_reasoning_no_history(self, agent):
         result = agent.get_execution_reasoning()
-        assert "No execution reasoning available" in result
+        assert [] == result
 
     def test_get_execution_reasoning_with_history(self, agent):
         agent._execution_history = MagicMock()
@@ -161,7 +160,7 @@ class TestResultGeneration:
             1: MagicMock(plan=[MagicMock(name="step1", description="desc1")])
         }
         agent._execution_history.trace_steps = [
-            MagicMock(action="success", name="step1", description="desc1")
+            MagicMock(action="success", name="step1", use_tool=False, description="desc1")
         ]
 
         result = agent.get_execution_reasoning()
@@ -171,8 +170,8 @@ class TestResultGeneration:
 class TestTokenManagement:
     def test_get_token(self, agent):
         with patch(
-            "agent_core.models.model_registry.ModelRegistry.get_token",
-            return_value=(10, 20),
+                "agent_core.models.model_registry.ModelRegistry.get_token",
+                return_value=(10, 20),
         ):
             agent.get_token()
             assert agent._execution_history.input_tokens == 10
@@ -202,7 +201,7 @@ class TestExecutionHistoryExtended:
 
     def test_export_execution_trace_no_history(self, agent):
         with patch("builtins.open", mock_open()) as mock_file, patch(
-            "os.makedirs"
+                "os.makedirs"
         ), patch("json.dump"):
             agent._execution_history = Steps()  # Empty history
             agent.export_execution_trace()

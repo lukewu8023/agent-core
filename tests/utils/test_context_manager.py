@@ -21,5 +21,4 @@ def test_context_to_str_non_empty():
     c = ContextManager()
     c.add_context("foo", "bar")
     output = c.context_to_str()
-    assert "<context>" in output and "</context>" in output
-    assert "<foo>" in output and "</foo>" in output
+    assert "*foo*" in output and "bar" in output
