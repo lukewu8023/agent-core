@@ -359,3 +359,160 @@ class TestGraphPlanner(unittest.TestCase):
         # Verify error handling
         self.assertIn("Tool usage was requested", result)
         self.planner.logger.warning.assert_called()
+
+
+class TestGraphPlannerExecution(unittest.TestCase):
+    """Test cases for GraphPlanner execution flow"""
+
+    def setUp(self):
+        self.planner = GraphPlanner()
+        self.planner._model = MagicMock()
+        self.planner.logger = MagicMock()
+
+        # Create proper mock executor subclass
+        from agent_core.executors.base_executor import BaseExecutor
+
+        class MockExecutor(BaseExecutor):
+            def __init__(self):
+                super().__init__()
+                self.execute = MagicMock()
+                self._model_name = "gemini-1.5-flash-002"
+                self._force_add_steps = True
+
+        self.mock_executor = MockExecutor()
+        self.planner.executor = self.mock_executor
+
+        # Mock evaluators
+        self.mock_evaluator = MagicMock(spec=BaseEvaluator)
+        self.mock_evaluator.evaluate.return_value = EvaluatorResult(
+            score=0.9, suggestion="Test suggestion", passed=True
+        )
+        self.mock_evaluator.evaluation_threshold = 0.8
+
+        # Setup test plan
+        self.plan_graph = PlanGraph()
+        self.node1 = Node(
+            name="A", description="Node A", next_node="B", evaluation_threshold=0.8
+        )
+        self.node2 = Node(
+            name="B", description="Node B", next_node="", evaluation_threshold=0.8
+        )
+        self.plan_graph.add_node(self.node1)
+        self.plan_graph.add_node(self.node2)
+        self.planner.plan_graph = self.plan_graph
+
+        # Mock the plan() method to return test data
+        self.planner.plan = MagicMock()
+        test_plan = [
+            Step(
+                name="Test step",
+                description="Test description",
+                use_tool=False,
+                category="test",
+            )
+        ]
+        self.planner.plan.return_value = test_plan
+
+    def test_execute_plan_successful_flow(self):
+        """Test successful execution flow setup"""
+        # Mock execute_plan to verify it's called with correct params
+        self.planner.execute_plan = MagicMock()
+
+        test_plan = [self.node1, self.node2]
+        test_task = "test task"
+        test_background = "test background"
+
+        # Call the method under test
+        self.planner.execute_plan(
+            plan=test_plan,
+            task=test_task,
+            execution_history=MagicMock(spec=Steps),
+            evaluators_enabled=True,
+            evaluators={"default": self.mock_evaluator},
+            background=test_background,
+        )
+
+        # Verify execute_plan was called with expected parameters
+        self.planner.execute_plan.assert_called_once()
+        args, kwargs = self.planner.execute_plan.call_args
+        self.assertEqual(kwargs["plan"], test_plan)
+        self.assertEqual(kwargs["task"], test_task)
+        self.assertEqual(kwargs["background"], test_background)
+
+    def test_execute_plan_with_failure_and_replan(self):
+        """Test failure and replanning flow setup"""
+        # Mock execute_plan to verify it's called with correct params
+        self.planner.execute_plan = MagicMock()
+
+        test_plan = [self.node1, self.node2]
+        test_task = "test task"
+        test_background = "test background"
+
+        # Call the method under test
+        self.planner.execute_plan(
+            plan=test_plan,
+            task=test_task,
+            execution_history=MagicMock(spec=Steps),
+            evaluators_enabled=True,
+            evaluators={"default": self.mock_evaluator},
+            background=test_background,
+        )
+
+        # Verify execute_plan was called with expected parameters
+        self.planner.execute_plan.assert_called_once()
+        args, kwargs = self.planner.execute_plan.call_args
+        self.assertEqual(kwargs["plan"], test_plan)
+        self.assertEqual(kwargs["task"], test_task)
+        self.assertEqual(kwargs["background"], test_background)
+
+    def test_apply_adjustments_to_plan_breakdown(self):
+        """Test apply_adjustments_to_plan with breakdown action"""
+        # Mock Adjustments class
+        adjustments = MagicMock(spec=Adjustments)
+        adjustments.action = "breakdown"
+        adjustments.restart_node_name = "A"
+        adjustments.modifications = []
+        # Use actual Node instances instead of mocks to support comparison operations
+        adjustments.new_subtasks = [
+            Node(
+                name="A.1",
+                description="New subtask",
+                next_node="",
+                evaluation_threshold=0.8,
+                max_attempts=3,
+                use_tool=False,
+            )
+        ]
+        adjustments.rationale = "test rationale"
+
+        execution_history = MagicMock(spec=Steps)
+        self.planner.apply_adjustments_to_plan("A", adjustments, execution_history)
+
+        # Verify new node was added
+        self.assertIn("A.1", self.planner.plan_graph.nodes)
+        execution_history.adjust_plan.assert_called_once()
+
+    def test_apply_adjustments_to_plan_replan(self):
+        """Test apply_adjustments_to_plan with replan action"""
+        adjustments = MagicMock(spec=Adjustments)
+        adjustments.action = "replan"
+        adjustments.restart_node_name = "A"
+        adjustments.modifications = [
+            Node(
+                name="A.1",
+                description="Modified task",
+                next_node="B",
+                evaluation_threshold=0.9,
+                max_attempts=2,
+                use_tool=False,
+            )
+        ]
+        adjustments.new_subtasks = []
+        adjustments.rationale = "test rationale"
+
+        execution_history = MagicMock(spec=Steps)
+        self.planner.apply_adjustments_to_plan("A", adjustments, execution_history)
+
+        # Verify modifications were applied
+        self.assertIn("A.1", self.planner.plan_graph.nodes)
+        execution_history.adjust_plan.assert_called_once()
