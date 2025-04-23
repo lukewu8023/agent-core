@@ -94,12 +94,18 @@ class CodingEvaluator(BaseEvaluator):
     ):
         super().__init__(model_name, log_level, evaluation_threshold)
 
-    def evaluate(self, root_task, request, response, background, context_manager) -> EvaluatorResult:
+    def evaluate(
+        self, root_task, request, response, background, context_manager
+    ) -> EvaluatorResult:
         """
         Evaluate the provided request and generated code response.
         """
-        prompt_text = self.prompt.format(root_task=root_task,
-            request=request, response=response, background=background, context=context_manager.context_to_str()
+        prompt_text = self.prompt.format(
+            root_task=root_task,
+            request=request,
+            response=response,
+            background=background,
+            context=context_manager.context_to_str(),
         )
 
         try:
@@ -107,32 +113,37 @@ class CodingEvaluator(BaseEvaluator):
         except Exception as e:
             self.logger.error("Error during model evaluation: %s", e)
             return EvaluatorResult(
-                reject_code,
-                0,
-                {
+                decision=reject_code,
+                score=0,
+                details={
                     "score_breakdown": [],
                     "raw_evaluation": "",
                     "improvement_suggestions": "Model evaluation failed. Please try again.",
                 },
             )
 
-        decision, total_score, scores = self.parse_scored_evaluation_response(
-            evaluation_response
-        )
+        result = self.parse_scored_evaluation_response(evaluation_response)
 
-        details = {
-            "score_breakdown": scores,
-            "raw_evaluation": evaluation_response,
-            "total_applicable_score": total_score,
-        }
-
-        if decision == reject_code:
-            improvement_suggestions = generate_improvement_suggestions(scores)
-            details["improvement_suggestions"] = improvement_suggestions
+        if isinstance(result, EvaluatorResult):
+            # Already an EvaluatorResult, just return it
+            return result
         else:
-            details["improvement_suggestions"] = ""
+            # Legacy tuple return format
+            decision, total_score, scores = result
 
-        return EvaluatorResult(decision, total_score, details)
+            details = {
+                "score_breakdown": scores,
+                "raw_evaluation": evaluation_response,
+                "total_applicable_score": total_score,
+            }
+
+            if decision == reject_code:
+                improvement_suggestions = generate_improvement_suggestions(scores)
+                details["improvement_suggestions"] = improvement_suggestions
+            else:
+                details["improvement_suggestions"] = ""
+
+            return EvaluatorResult(decision, total_score, details)
 
     def default_prompt(self):
         return DEFAULT_PROMPT
