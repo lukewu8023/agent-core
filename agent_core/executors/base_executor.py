@@ -15,7 +15,7 @@ class BaseExecutor(AgentBasic):
         """Initialize the executor with an optional model name and log level."""
         super().__init__(self.__class__.__name__, model_name, log_level)
 
-    def execute(self, prompt: str, model_name: Optional[str] = None) -> str:
+    async def execute(self, prompt: str, model_name: Optional[str] = None) -> str:
         """
         Execute the given prompt using the specified model (or default model).
 
@@ -28,4 +28,4 @@ class BaseExecutor(AgentBasic):
         """
         model_to_use = model_name or self.model_name
         self.logger.debug(f"Executing prompt with model {model_to_use}")
-        return ModelRegistry.get_model(model_to_use).process(prompt)
+        return await ModelRegistry.get_model(model_to_use).process(prompt)

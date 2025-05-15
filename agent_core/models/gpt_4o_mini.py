@@ -2,7 +2,6 @@
 
 from .base_model import BaseModel
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
 
 
 class GPT4OMiniModel(BaseModel):
@@ -12,19 +11,6 @@ class GPT4OMiniModel(BaseModel):
         self.model_instance = ChatOpenAI(
             model_name="gpt-4o-mini", temperature=0.1, verbose=True
         )
-
-    def invoke(self, request: str) -> str:
-        messages = [
-            HumanMessage(request),
-        ]
-        response = self.model_instance.invoke(messages)
-        # Extract the 'content' attribute to return a string
-        if hasattr(response, "content"):
-            self.add_token(response)
-            return response.content
-        else:
-            # Fallback in case 'content' is missing
-            return str(response)
 
     def name(self) -> str:
         return "gpt-4o-mini"

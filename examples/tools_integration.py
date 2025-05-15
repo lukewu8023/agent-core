@@ -1,7 +1,8 @@
 # examples/tools_integration.py
-
+import asyncio
 import sys
 import os
+from time import sleep
 
 # Add the parent directory to sys.path to allow imports from the framework
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +17,7 @@ from typing import Annotated, List
 
 
 @tool("event")
-def get_event(event_id: Annotated[int, "event id"]) -> dict:
+def get_event(eventId: Annotated[int, "event id"]) -> dict:
     """Get Event Detail"""
     return {
         "event": {
@@ -78,7 +79,7 @@ def get_trace(trace_id: Annotated[str, "trace id"]) -> List:
     ]
 
 
-def main():
+async def main():
     agent = Agent(model_name="gemini-1.5-flash-002")
 
     agent.tools = [get_event, get_metric, get_log, get_trace]
@@ -86,11 +87,14 @@ def main():
     agent.enable_evaluators()
 
     task = "Find the specifics root cause and get more detail about why the event id: 10000 in IE component failed?"
-    execution_result = agent.execute(task)
+    execution_result = asyncio.create_task(agent.execute(task))
 
-    print(f"Reasoning : {agent.get_reasoning()}")
-    print(f"Execution Result: {execution_result}")
+    while not execution_result.done():
+        print(f"Reasoning : {agent.get_execution_reasoning()}")
+        await asyncio.sleep(3)
 
+    result = await execution_result
+    print(f"Final Execution Result: {result}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

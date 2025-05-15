@@ -13,21 +13,6 @@ class Gemini15Flash002Model(BaseModel):
         self.model_instance = ChatOpenAI(
             model_name="gemini-1.5-flash-002", temperature=0.1, verbose=True
         )
-        os.getenv("openai_api_key")
-        pass
-
-    def invoke(self, request: str) -> str:
-        messages = [
-            HumanMessage(request),
-        ]
-        response = self.model_instance.invoke(messages)
-        # Extract the 'content' attribute to return a string
-        if hasattr(response, "content"):
-            self.add_token(response)
-            return response.content
-        else:
-            # Fallback in case 'content' is missing
-            return str(response)
 
     def name(self) -> str:
         return "gemini-1.5-flash-002"

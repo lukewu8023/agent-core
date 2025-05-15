@@ -1,8 +1,8 @@
 # planners/generic_planner.py
 
 from typing import List, Optional, Dict
-from langchain_core.tools import BaseTool
-from .base_planner import BasePlanner, tool_knowledge_format
+from .base_planner import BasePlanner
+from ..entities.agent_tool import AgentTool
 from ..entities.steps import Steps, Step
 from ..evaluators import BaseEvaluator
 from ..utils.context_manager import ContextManager
@@ -48,10 +48,10 @@ class GenericPlanner(BasePlanner):
         """
         super().__init__(model_name, log_level)
 
-    def plan(
+    async def plan(
         self,
         task: str,
-        tools: Optional[List[BaseTool]],
+        agent_tool: Optional[AgentTool],
         knowledge: str = "",
         background: str = "",
         categories: Optional[List[str]] = None,
@@ -63,20 +63,19 @@ class GenericPlanner(BasePlanner):
         """
         self.logger.info(f"Creating plan for task: {task}")
 
-        tools_knowledge = tool_knowledge_format(tools)
         categories_str = ", ".join(categories) if categories else "(Not defined)"
 
         final_prompt = self.prompt.format(
             knowledge=knowledge,
             background=background,
             task=task,
-            tools_knowledge=tools_knowledge,
+            tools_knowledge=agent_tool.get_tool_knowledge(),
             example_json1=EXAMPLE_JSON1,
             example_json2=EXAMPLE_JSON2,
             categories_str=categories_str,
         )
 
-        response_text = self._model.process(final_prompt)
+        response_text = await self._model.process(final_prompt)
 
         if not response_text or not response_text.strip():
             error_msg = "LLM returned an empty or null response."
@@ -98,7 +97,7 @@ class GenericPlanner(BasePlanner):
         self.logger.info(f"Plan: \n{plan}")
         return plan.steps
 
-    def execute_plan(
+    async def execute_plan(
         self,
         plan: List[Step],
         task: str,
@@ -136,7 +135,7 @@ class GenericPlanner(BasePlanner):
                 attempt = 1
                 chosen_cat = step.category if step.category in evaluators else "default"
                 evaluator = evaluators.get(chosen_cat)
-                evaluator_result = evaluator.evaluate(
+                evaluator_result = await evaluator.evaluate(
                     task, step.description, response, background, context_manager
                 )
                 step.add_evaluator_result(evaluator_result)
@@ -161,7 +160,7 @@ class GenericPlanner(BasePlanner):
                         retry_step.prompt = retry_prompt
                         response = self.executor.execute(retry_prompt)
                         retry_step.result = response
-                        evaluator_result = evaluator.evaluate(
+                        evaluator_result = await evaluator.evaluate(
                             task, step.description, response, background, context_manager
                         )
                         retry_step.add_evaluator_result(evaluator_result)

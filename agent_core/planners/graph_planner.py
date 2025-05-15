@@ -2,19 +2,16 @@
 
 import copy
 
+from agent_core.entities.agent_tool import AgentTool
 from agent_core.evaluators import BaseEvaluator
 from agent_core.evaluators.entities.evaluator_result import EvaluatorResult
 from pydantic import BaseModel
-from agent_core.planners.base_planner import (
-    BasePlanner,
-    tool_knowledge_format,
-)
+from agent_core.planners.base_planner import BasePlanner
 from agent_core.planners.generic_planner import GenericPlanner
 from agent_core.utils.context_manager import ContextManager
 from agent_core.entities.steps import Steps, Step
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
-from langchain_core.tools import BaseTool
 from agent_core.utils.logger import get_logger
 
 JSON_FORMAT = "```json"
@@ -266,7 +263,6 @@ class Node(Step):
     """
 
     next_node: Optional[str] = ""
-    tool: Optional[BaseTool] = None
     evaluation_threshold: Optional[float] = None
     max_attempts: int = 3
     current_attempts: int = 0
@@ -297,7 +293,7 @@ class PlanGraph:
     task: str = ""
     tool_knowledge: str = ""  # textual representation from tool_knowledge_format
     prompt: str = ""  # The replan prompt if needed
-    tools: Optional[Dict[str, BaseTool]] = None
+    agent_tool: Optional[AgentTool] = None
 
     def add_node(self, node: Node):
         self.nodes[node.name] = node
@@ -445,13 +441,13 @@ class GraphPlanner(BasePlanner):
         if hasattr(self.executor, "execute_prompt"):
             self.executor.execute_prompt = value
 
-    def plan(
-            self,
-            task: str,
-            tools: Optional[List[BaseTool]],
-            knowledge: str = "",
-            background: str = "",
-            categories: Optional[List[str]] = None,
+    async def plan(
+        self,
+        task: str,
+        agent_tool: Optional[AgentTool],
+        knowledge: str = "",
+        background: str = "",
+        categories: Optional[List[str]] = None,
     ) -> List[Node]:
         """
         1) Call GenericPlanner to obtain a list of Steps using the same arguments.
@@ -463,9 +459,9 @@ class GraphPlanner(BasePlanner):
         # Use GenericPlanner internally to get the steps
         generic_planner = GenericPlanner(model_name=self.model_name, log_level=None)
         generic_planner.prompt = self.prompt
-        plan = generic_planner.plan(
+        plan = await generic_planner.plan(
             task=task,
-            tools=tools,
+            agent_tool=agent_tool,
             knowledge=knowledge,
             background=background,
             categories=categories,
@@ -478,26 +474,20 @@ class GraphPlanner(BasePlanner):
         plan_graph.knowledge = knowledge
         plan_graph.categories = categories
         plan_graph.task = task
-        plan_graph.tool_knowledge = tool_knowledge_format(tools)
+        plan_graph.tool_knowledge = agent_tool.get_tool_knowledge()
+        plan_graph.agent_tool = agent_tool
 
-        tool = None
         previous_node = None
-        tool_map = {}
-        if tools is not None:
-            tool_map = {tool.name: tool for tool in tools}
-            plan_graph.tools = tool_map
+
         for idx, step in enumerate(plan, start=1):
             node_name = chr(65 + idx - 1)  # e.g., A, B, C...
             next_node_name = chr(65 + idx) if idx < len(plan) else ""
 
-            if step.tool_name and tool_map:
-                tool = tool_map.get(step.tool_name)
             node = Node(
                 name=node_name,
                 description=step.description,
                 use_tool=step.use_tool,
                 tool_name=step.tool_name,
-                tool=tool,
                 next_node=next_node_name,
                 category=step.category,
             )
@@ -510,15 +500,15 @@ class GraphPlanner(BasePlanner):
         self.plan_graph = plan_graph
         return self.plan_graph.to_plan()
 
-    def execute_plan(
-            self,
-            plan: List[Step],
-            task: str,
-            execution_history: Steps,
-            evaluators_enabled: bool,
-            evaluators: dict,
-            context_manager: ContextManager = ContextManager(),
-            background: str = "",
+    async def execute_plan(
+        self,
+        plan: List[Step],
+        task: str,
+        execution_history: Steps,
+        evaluators_enabled: bool,
+        evaluators: dict,
+        context_manager: ContextManager = ContextManager(),
+        background: str = "",
     ):
         """
         Executes the PlanGraph node by node.
@@ -542,7 +532,7 @@ class GraphPlanner(BasePlanner):
                 break
             node = pg.nodes[pg.current_node_name]
 
-            step, threshold = self.execute(
+            step, threshold = await self.execute(
                 node, evaluators_enabled, task, background, evaluators, None
             )
             if pass_threshold(
@@ -552,13 +542,13 @@ class GraphPlanner(BasePlanner):
                     self.logger.info(
                         f"Actual Node Threshold: {node.evaluation_threshold}, Decision: Accept Output"
                     )
-                self.success_result(node, execution_history, step)
+                await self.success_result(node, execution_history, step)
             else:
                 execution_history.add_retry_step(step)
                 retry = True
                 retry_steps: List[Step] = [step]
                 while retry and node.max_attempts > node.current_attempts:
-                    attempt_step, threshold = self.execute(
+                    attempt_step, threshold = await self.execute(
                         node,
                         evaluators_enabled,
                         task,
@@ -582,13 +572,13 @@ class GraphPlanner(BasePlanner):
                         retry_steps.append(attempt_step)
                         retry = True
                 if not retry:
-                    self.success_result(node, execution_history, step)
+                    await self.success_result(node, execution_history, step)
                 else:
                     self.logger.warning(f"Replanning is needed at Node {node.name}")
                     failure_info = self._prepare_failure_info(
                         execution_history, retry_steps[-1]
                     )
-                    replan_response = self._failure_replan(pg, failure_info)
+                    replan_response = await self._failure_replan(pg, failure_info)
                     cleaned = (
                         replan_response.replace(JSON_FORMAT, "")
                         .replace("```", "")
@@ -627,14 +617,14 @@ class GraphPlanner(BasePlanner):
                         break
         self.logger.info("Task execution completed using GraphPlanner")
 
-    def execute(
-            self,
-            node,
-            evaluators_enabled,
-            task,
-            background,
-            evaluators,
-            failure_step: Optional[List[Step]],
+    async def execute(
+        self,
+        node,
+        evaluators_enabled,
+        task,
+        background,
+        evaluators,
+        failure_step: Optional[List[Step]],
     ) -> (Step, float):
         step = Step(
             name=node.name,
@@ -643,15 +633,15 @@ class GraphPlanner(BasePlanner):
             tool_name=node.tool_name,
             category=node.category,
         )
-        response = self._execute_node(
+        response = await self._execute_node(
             node, self.model_name, task, background, step, failure_step
         )
-        step.evaluator_result, threshold = self._evaluate_node(
+        step.evaluator_result, threshold = await self._evaluate_node(
             node, task, response, evaluators_enabled, evaluators, background
         )
         return step, threshold
 
-    def success_result(self, node, execution_history: Steps, step: Step):
+    async def success_result(self, node, execution_history: Steps, step: Step):
         # Add node info to context
         self.context_manager.add_context(step.name, step.to_success_info())
         # Keep the raw response in node's execution_results for reference
@@ -660,10 +650,10 @@ class GraphPlanner(BasePlanner):
         node.result = step.result
         # Post-success replan check
         # We'll see if we want to add or replace future steps on the fly.
-        self._success_replan(self.plan_graph, node, execution_history)
+        await self._success_replan(self.plan_graph, node, execution_history)
         self.plan_graph.current_node_name = node.next_node
 
-    def _execute_node(
+    async def _execute_node(
             self,
             node: Node,
             model_name: str,
@@ -702,17 +692,17 @@ class GraphPlanner(BasePlanner):
         step.prompt = final_prompt
 
         # Use executor instead of direct model call
-        response = self.executor.execute(final_prompt, model_name)
+        response = await self.executor.execute(final_prompt, model_name)
 
         cleaned = response.replace(JSON_FORMAT, "").replace("```", "").strip()
 
         try:
             data = ExecuteResult.model_validate_json(cleaned)
             if data.use_tool:
-                if node.tool is not None:
+                if node.tool_name:
                     try:
                         step.tool_args = data.tool_arguments
-                        tool_response = node.tool.invoke(data.tool_arguments)
+                        tool_response = await self.plan_graph.agent_tool.execute_tool(node.tool_name, data.tool_arguments)
                         response = f"""
 tool description: {tool_description}
 tool arguments: {data.tool_arguments} 
@@ -734,21 +724,10 @@ tool response : {tool_response}
     def process_tool_description(self, node: Node):
         tool_description = ""
         if node.use_tool:
-            node.tool = self.plan_graph.tools.get(node.tool_name)
-            if node.tool is None:
-                self.logger.warning(
-                    f"Node {node.name} indicates 'use_tool' but 'tool' is None. Skipping tool usage details."
-                )
-            elif hasattr(node.tool, "args_schema"):
-                tool_description = str(node.tool.args_schema.model_json_schema())
-            else:
-                self.logger.warning(
-                    f"Node {node.name} indicates 'use_tool' but the provided tool lacks 'args_schema'."
-                )
-                tool_description = f"[Tool: {node.tool_name}]"
+            tool_description = self.plan_graph.agent_tool.get_tool_description(node.tool_name)
         return tool_description
 
-    def _evaluate_node(
+    async def _evaluate_node(
             self,
             node: Node,
             root_task: str,
@@ -770,7 +749,7 @@ tool response : {tool_response}
                 f"No evaluator found for category '{chosen_cat}'. evaluation skipped."
             )
             return EvaluatorResult(), 0.0
-        evaluator_result = evaluator.evaluate(
+        evaluator_result = await evaluator.evaluate(
             root_task, node.description, result, background, self.context_manager
         )
         self.logger.info(
@@ -793,7 +772,7 @@ tool response : {tool_response}
             "replan_history": pg.replan_history,
         }
 
-    def _success_replan(self, plan_graph: PlanGraph, current_node: Node, execution_history: Steps):
+    async def _success_replan(self, plan_graph: PlanGraph, current_node: Node, execution_history: Steps):
         """
         After a node is successfully executed, optionally adjust remaining steps
         in the plan using the DEFAULT_SUCCESS_REPLAN_PROMPT. If 'action' = 'none',
@@ -822,7 +801,7 @@ tool response : {tool_response}
         )
 
         self.logger.info("Calling model for success replan instructions...")
-        response = self._model.process(final_prompt)
+        response = await self._model.process(final_prompt)
         self.logger.debug(f"Success replan response:\n{response}")
         cleaned = response.replace(JSON_FORMAT, "").replace("```", "").strip()
         try:
@@ -907,7 +886,7 @@ tool response : {tool_response}
                 to_remove.append(nxt)
         return to_remove
 
-    def _failure_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
+    async def _failure_replan(self, plan_graph: PlanGraph, failure_info: Dict) -> str:
         execution_plan = plan_graph.execution_plan()
 
         final_prompt = plan_graph.prompt.format(
@@ -928,7 +907,7 @@ tool response : {tool_response}
             current_node_name=plan_graph.current_node_name,
         )
         self.logger.info("Calling model for replan instructions...")
-        response = self._model.process(final_prompt)
+        response = await self._model.process(final_prompt)
         self.logger.info(f"Replan response: {response}")
         return response
 

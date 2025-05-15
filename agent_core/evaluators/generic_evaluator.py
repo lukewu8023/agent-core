@@ -72,7 +72,7 @@ class GenericEvaluator(BaseEvaluator):
     ):
         super().__init__(model_name, log_level, evaluation_threshold)
 
-    def evaluate(
+    async def evaluate(
         self, root_task, request, response, background, context_manager
     ) -> EvaluatorResult:
         """
@@ -87,7 +87,7 @@ class GenericEvaluator(BaseEvaluator):
             background=background,
             context=context_manager.context_to_str(),
         )
-        evaluation_response = self._model.process(prompt_text)
+        evaluation_response = await self._model.process(prompt_text)
 
         # parse the JSON
         decision, score, suggestion, details = parse_scored_evaluation_response(

@@ -94,7 +94,7 @@ class CodingEvaluator(BaseEvaluator):
     ):
         super().__init__(model_name, log_level, evaluation_threshold)
 
-    def evaluate(
+    async def evaluate(
         self, root_task, request, response, background, context_manager
     ) -> EvaluatorResult:
         """
@@ -109,7 +109,7 @@ class CodingEvaluator(BaseEvaluator):
         )
 
         try:
-            evaluation_response = self._model.process(prompt_text)
+            evaluation_response = await self._model.process(prompt_text)
         except Exception as e:
             self.logger.error("Error during model evaluation: %s", e)
             return EvaluatorResult(

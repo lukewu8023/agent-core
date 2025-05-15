@@ -62,12 +62,12 @@ class LLMChat(AgentBasic):
     def evaluate_text_prompt(self, value: str):
         self._evaluate_text_prompt = value
 
-    def process(self, request: str) -> str:
-        response = self._model.process(request)
+    async def process(self, request: str) -> str:
+        response = await self._model.process(request)
         self.logger.debug(f"Response: {response}")
         return response.strip()
 
-    def evaluate_text(
+    async def evaluate_text(
         self, input_text: str, criteria: str = "", rating_threshold: int = 8
     ) -> dict:
         """
@@ -87,7 +87,7 @@ class LLMChat(AgentBasic):
             input_text=input_text,
             criteria=criteria,
         )
-        response = self._model.process(prompt)
+        response = await self._model.process(prompt)
         self.logger.debug(f"Evaluate raw response: {response}")
         # Parse rating from 1..10
         rating_val = _parse_rating(response)

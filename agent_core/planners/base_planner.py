@@ -2,10 +2,9 @@
 
 from abc import abstractmethod
 from typing import List, Optional
-from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
+from agent_core.entities.agent_tool import AgentTool
 from agent_core.executors.base_executor import BaseExecutor
-
 
 DEFAULT_PROMPT = """ 
 Given the following task and the tools, generate a high-level plan by breaking it down into meaningful, actionable steps.
@@ -47,16 +46,6 @@ Ensure your response is valid JSON, without any additional text or comments.
 
 **Steps:**
 """
-
-
-def tool_knowledge_format(tools: Optional[List[BaseTool]]) -> str:
-    tools_knowledge_list = []
-    if tools is not None:
-        tools_knowledge_list = [
-            str(tool.args_schema.model_json_schema()) for tool in tools
-        ]
-    tools_knowledge = "\n".join(tools_knowledge_list)
-    return tools_knowledge
 
 
 class BasePlanner(AgentBasic):
@@ -122,10 +111,10 @@ class BasePlanner(AgentBasic):
             self._executor.model_name = model_name
 
     @abstractmethod
-    def plan(
+    async def plan(
         self,
         task: str,
-        tools: Optional[List[BaseTool]],
+        agent_tool: Optional[AgentTool],
         knowledge: str = "",
         background: str = "",
         categories: Optional[List[str]] = None,

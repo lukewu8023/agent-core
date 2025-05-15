@@ -64,7 +64,7 @@ class ToolCallingEvaluator(BaseEvaluator):
     def default_prompt(self):
         return EVALUATOR_PROMPT
 
-    def evaluate(
+    async def evaluate(
         self,
         root_task: str,
         request: str,
@@ -85,7 +85,7 @@ class ToolCallingEvaluator(BaseEvaluator):
             background=background,
             context=context_manager.context_to_str(),
         )
-        evaluation_response = self._model.process(prompt_text)
+        evaluation_response = await self._model.process(prompt_text)
 
         # parse the JSON
         decision, score, suggestion, details = parse_scored_evaluation_response(

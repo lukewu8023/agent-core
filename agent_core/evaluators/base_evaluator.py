@@ -72,7 +72,7 @@ class BaseEvaluator(AgentBasic):
         pass
 
     @abstractmethod
-    def evaluate(
+    async def evaluate(
         self,
         root_task: str,
         request: str,

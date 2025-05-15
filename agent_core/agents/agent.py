@@ -8,7 +8,9 @@ from typing import Optional, List
 
 from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
+from agent_core.entities.agent_tool import AgentTool
 from agent_core.entities.steps import Steps, Step, Summary
+from agent_core.protocols.mcp.mcp_server import MCPServer
 from agent_core.models.model_registry import ModelRegistry
 from agent_core.planners.base_planner import BasePlanner
 from agent_core.utils.context_manager import ContextManager
@@ -86,6 +88,7 @@ class Agent(AgentBasic):
 
         self.planner = None
         self.tools: Optional[List[BaseTool]] = None
+        self.mcp_servers: Optional[List[MCPServer]] = None
 
         # Default knowledge / background
         self.knowledge = ""  # Used to guide how we make plans
@@ -106,7 +109,7 @@ class Agent(AgentBasic):
 
         self.logger.info("Agent instance is created.")
 
-    def execute(self, task: str):
+    async def execute(self, task: str):
         """
         1) If no planner, do direct single-step with the model (use background).
         2) If planner, plan(...) -> then call execute_plan(...).
@@ -115,20 +118,22 @@ class Agent(AgentBasic):
 
         # Case 1: No planner => direct single-step
         if not self.planner:
-            return self.execute_without_planner(task)
+            return await self.execute_without_planner(task)
 
         # Case 2: Using a planner => first create steps/graph
         current_categories = list(self.evaluators.keys())
-        plan = self.planner.plan(
+        agent_tool = AgentTool(self.tools, self.mcp_servers)
+        await agent_tool.get_tool()
+        plan = await self.planner.plan(
             task=task,
-            tools=self.tools,
+            agent_tool=agent_tool,
             knowledge=self.knowledge,
             background=self.background,
             categories=current_categories,
         )
         self._execution_history.add_plan(plan)
         # Now just call planner's execute_plan(...) in a unified way
-        self.planner.execute_plan(
+        await self.planner.execute_plan(
             task=task,
             execution_history=self._execution_history,
             plan=plan,
@@ -137,18 +142,18 @@ class Agent(AgentBasic):
             evaluators_enabled=self.evaluators_enabled,
             evaluators=self.evaluators,
         )
-        agent_result = self.get_execution_result_summary()
+        agent_result = await self.get_execution_result_summary()
         self.get_token()
         return agent_result.output_result
 
-    def execute_without_planner(self, task: str):
+    async def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
         final_prompt = self.execute_prompt.format(
             context_section=context_section,
             background=self.background,
             task=task,
         )
-        response = self._model.process(final_prompt)
+        response = await self._model.process(final_prompt)
         self.logger.info(f"Response: {response}")
         self._execution_history.add_success_step(
             Step(
@@ -231,16 +236,16 @@ class Agent(AgentBasic):
         """
         return self._execution_history.execution_history_to_responses()
 
-    def get_final_response(self, task: str) -> str:
+    async def get_final_response(self, task: str) -> str:
         history_text = self._execution_history.execution_history_to_str()
         final_response_prompt = self.response_prompt.format(
             task=task, history_text=history_text
         )
         self.logger.info("Generating final response.")
-        final_response = self._model.process(final_response_prompt)
+        final_response = await self._model.process(final_response_prompt)
         return str(final_response)
 
-    def get_execution_result_summary(self) -> Summary:
+    async def get_execution_result_summary(self) -> Summary:
         """
         Produce an overall summary describing how the solution was completed,
         using the LLM (agent's model) to format the final explanation if desired.
@@ -255,7 +260,7 @@ class Agent(AgentBasic):
         final_prompt = self.summary_prompt.format(history_text=history_text)
 
         self.logger.info("Generating execution result summary.")
-        summary_response = self._model.process(final_prompt)
+        summary_response = await self._model.process(final_prompt)
         cleaned = summary_response.replace("```json", "").replace("```", "").strip()
         summary = Summary.model_validate_json(cleaned)
         self._execution_history.summary = summary

@@ -5,3 +5,8 @@ pydantic-settings~=2.7.1
 langchain-openai~=0.3.5
 autogen-agentchat~=0.4.7
 autogen-core~=0.4.7
+
+httpx-sse==0.4.0
+sse-starlette==2.2.1
+starlette==0.46.2
+uvicorn==0.34.1

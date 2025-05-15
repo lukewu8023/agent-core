@@ -88,8 +88,10 @@ class Steps(BaseModel):
 
     def add_success_step(self, step: Step):
         step.enrich_success_step(len(self.trace_plan))
-        trace_plan = self.trace_plan[step.plan_name]
-        final_step = trace_plan.plan[-1]
+        final_step = step
+        if step.plan_name != 0:
+            trace_plan = self.trace_plan[step.plan_name]
+            final_step = trace_plan.plan[-1]
         if final_step.name == step.name:
             step.action = "end"
         self.trace_steps.append(step)
