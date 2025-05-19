@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from agent_core.agents import Agent
@@ -44,10 +45,16 @@ class A2AAgent(Agent, BaseAgentExecutor):
         if not task:
             task = create_task_obj(params)
 
-        agent_response: str = await self.execute(
+        agent_response = asyncio.create_task(self.execute(
             query
-        )
-        update_task_with_agent_response(task, agent_response)
+        ))
+
+        while not agent_response.done():
+            print(f"Reasoning : {self.get_execution_reasoning()}")
+            await asyncio.sleep(1)
+
+        result = await agent_response
+        update_task_with_agent_response(task, result)
         event_queue.enqueue_event(task)
 
     @override

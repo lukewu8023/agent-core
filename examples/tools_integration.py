@@ -4,6 +4,10 @@ import sys
 import os
 from time import sleep
 
+from agents import Runner
+
+from agent_core.protocols.mcp.mcp_server import MCPServer
+
 # Add the parent directory to sys.path to allow imports from the framework
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -81,7 +85,8 @@ def get_trace(trace_id: Annotated[str, "trace id"]) -> List:
 
 async def main():
     agent = Agent(model_name="gemini-1.5-flash-002")
-
+    mcp = MCPServer('http://0.0.0.0:8000/mcp')
+    agent.mcp_servers = [mcp]
     agent.tools = [get_event, get_metric, get_log, get_trace]
     agent.planner = GraphPlanner(model_name="gemini-1.5-pro-002")
     agent.enable_evaluators()

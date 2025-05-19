@@ -35,14 +35,12 @@ class MCPServer:
                 )
             )
             await session.initialize()
-            self.session = session
-        except Exception as e:
+            return session
+        except Exception:
             await self.cleanup()
             raise
 
     async def tool_calling(self, tool_name: str, arguments: dict[str, Any] | None):
-        if not self.session:
-            await self.connect()
         result = await self.session.call_tool(tool_name, arguments)
         return result.content[0].text
 

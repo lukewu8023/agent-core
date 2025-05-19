@@ -20,12 +20,16 @@ async def main():
     agent.mcp_servers = [mcp]
     agent.planner = GraphPlanner(model_name="gemini-1.5-pro-002")
     agent.enable_evaluators()
+
     task = "Find the specifics root cause and get more detail about why the event id: 10000 in IE component failed?"
-    asyncio.create_task(agent.execute(task))
-    # execution_result = asyncio.create_task(agent.execute(task))
-    #
-    # print(f"Reasoning : {agent.get_execution_reasoning()}")
-    # print(f"Execution Result: {execution_result}")
+    execution_result = asyncio.create_task(agent.execute(task))
+
+    while not execution_result.done():
+        print(f"Reasoning : {agent.get_execution_reasoning()}")
+        await asyncio.sleep(3)
+
+    result = await execution_result
+    print(f"Final Execution Result: {result}")
 
 
 if __name__ == "__main__":

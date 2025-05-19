@@ -93,13 +93,12 @@ def create_send_message_payload(
     return payload
 
 
-def print_json_response(response: Any, description: str) -> None:
+def return_response(response: Any) -> None:
     """Helper function to print the JSON representation of a response."""
-    print(f'--- {description} ---')
     if hasattr(response, 'root'):
-        print(f'{response.root.model_dump_json(exclude_none=True)}\n')
+        return response.root.model_dump_json(exclude_none=True)
     else:
-        print(f'{response.model_dump(mode="json", exclude_none=True)}\n')
+        return response.model_dump(mode="json", exclude_none=True)
 
 
 async def send_task(client: A2AClient, payload: dict[str, Any]) -> None:
@@ -113,13 +112,7 @@ async def send_task(client: A2AClient, payload: dict[str, Any]) -> None:
     if not isinstance(send_response.root.result, Task):
         print('received non-task response. Aborting get task ')
         return
-
-    task_id: str = send_response.root.result.id
-    task_id_payload = {'id': task_id}
-    get_response: GetTaskResponse = await client.get_task(
-        payload=task_id_payload
-    )
-    print_json_response(get_response, 'Query Task Response')
+    return return_response(send_response)
 
 
 class TaskSchema(BaseModel):
@@ -184,4 +177,4 @@ class SuperVisorAgent(A2AAgent):
         timeout = httpx.Timeout(connect=3600.0, read=3600.0, write=3600.0, pool=3600.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             a2a_client = await A2AClient.get_client_from_agent_card_url(client, card.url)
-            await send_task(a2a_client, payload)
+            return await send_task(a2a_client, payload)
