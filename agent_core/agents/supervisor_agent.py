@@ -1,7 +1,9 @@
 import asyncio
 import json
 import uuid
-from typing import Optional, Any, override
+from typing import Optional, Any
+from typing_extensions import override
+
 import nest_asyncio
 import httpx
 from agent_core.agents import Agent

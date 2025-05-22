@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional, Any
 from mcp import ClientSession, Tool
 from mcp.client.streamable_http import streamablehttp_client
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 
 
 class MCPServer:
