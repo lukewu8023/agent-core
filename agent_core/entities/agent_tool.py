@@ -56,6 +56,6 @@ class AgentTool:
         if self.tool_type[name] == "langchain":
             return self.langchain_tool_map[name].invoke(arg)
         server = self.mcp_servers_map[name]
-        session = await server.connect
+        session = await server.connect()
         async with session:
             return await session.tool_calling(name, arg)
