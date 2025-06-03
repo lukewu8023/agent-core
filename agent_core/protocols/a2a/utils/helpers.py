@@ -81,6 +81,23 @@ def append_artifact_to_task(task: Task, event: TaskArtifactUpdateEvent) -> None:
         )
 
 
+def update_task_with_agent_reasoning(
+    task: Task, agent_reasoning: str
+) -> None:
+    """Updates the provided task with the agent response."""
+    task.status.timestamp = datetime.now().isoformat()
+    parts: list[Part] = []
+    for reasoning in agent_reasoning:
+        parts.append(Part(TextPart(text=reasoning)))
+    task.status.state = TaskState.working
+    task.status.message = None
+    if not task.artifacts:
+        task.artifacts = []
+
+    artifact: Artifact = Artifact(parts=parts, artifactId=str(uuid4()))
+    task.artifacts.append(artifact)
+
+
 def update_task_with_agent_response(
     task: Task, agent_response: str
 ) -> None:

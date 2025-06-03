@@ -4,11 +4,14 @@ import uuid
 from typing import Optional, Any, override
 import nest_asyncio
 import httpx
+from starlette.websockets import WebSocket
+
 from agent_core.agents import Agent
 from agent_core.agents.a2a_agent import A2AAgent
 from agent_core.protocols.a2a.client import A2ACardResolver, A2AClient
 from agent_core.protocols.a2a.types import (
-    AgentCard, SendMessageResponse, SendMessageSuccessResponse, GetTaskResponse, Task,
+    AgentCard, SendMessageResponse, SendMessageSuccessResponse, GetTaskResponse, Task, SendStreamingMessageResponse,
+    GetTaskRequest, TaskQueryParams, TaskState,
 )
 from pydantic import BaseModel, Field
 
@@ -105,14 +108,15 @@ async def send_task(client: A2AClient, payload: dict[str, Any]) -> None:
     send_response: SendMessageResponse = await client.send_message(
         payload=payload
     )
-    if not isinstance(send_response.root, SendMessageSuccessResponse):
-        print('received non-success response. Aborting get task ')
-        return
-
-    if not isinstance(send_response.root.result, Task):
-        print('received non-task response. Aborting get task ')
-        return
     return return_response(send_response)
+
+
+async def send_task_stream(client: A2AClient, payload: dict[str, Any], ws: WebSocket) -> None:
+    async for response in client.send_message_streaming(payload=payload):
+        task = response.root
+        result: Task = getattr(task, "result", None)
+        for part in result.artifacts[0].parts:
+            await ws.send_text(part.root.model_dump_json(exclude_none=True))
 
 
 class TaskSchema(BaseModel):
@@ -164,17 +168,30 @@ class SuperVisorAgent(A2AAgent):
             card = await load_agent(address)
             self.cards[card.name] = card
 
-    @override
-    async def execute(self, task: str):
+    async def route(self, task: str):
         if len(self.cards) == 0 and len(self.remote_server_addresses) != 0:
             await self.init()
         routing_prompt = ROUTE_PROMPT.format(agents=json.dumps(self.get_agents_info()), task=task)
         routing = await LLMChat().process(routing_prompt)
         response = json.loads(routing.replace("```json", '').replace("```", ''))
         agent = response['agent']
+        return agent
+
+    @override
+    async def execute(self, task: str):
+        agent = await self.route(task)
         card = self.cards[agent]
         payload = create_send_message_payload(text=task)
         timeout = httpx.Timeout(connect=3600.0, read=3600.0, write=3600.0, pool=3600.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             a2a_client = await A2AClient.get_client_from_agent_card_url(client, card.url)
             return await send_task(a2a_client, payload)
+
+    async def execute_ws(self, task: str, ws: WebSocket):
+        agent = await self.route(task)
+        card = self.cards[agent]
+        payload = create_send_message_payload(text=task)
+        timeout = httpx.Timeout(connect=3600.0, read=3600.0, write=3600.0, pool=3600.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            a2a_client = await A2AClient.get_client_from_agent_card_url(client, card.url)
+            await send_task_stream(a2a_client, payload, ws)

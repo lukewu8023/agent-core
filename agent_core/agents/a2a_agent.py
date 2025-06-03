@@ -1,9 +1,10 @@
 import asyncio
 from typing import Optional
+from uuid import uuid4
 
 from agent_core.agents import Agent
 from agent_core.protocols.a2a.utils.helpers import (
-    update_task_with_agent_response,
+    update_task_with_agent_response, update_task_with_agent_reasoning,
 )
 from typing_extensions import override
 
@@ -14,7 +15,7 @@ from agent_core.protocols.a2a.types import (
     SendMessageRequest,
     SendStreamingMessageRequest,
     Task,
-    TextPart,
+    TextPart, TaskState, TaskStatus,
 )
 from agent_core.protocols.a2a.utils import create_task_obj
 
@@ -64,4 +65,27 @@ class A2AAgent(Agent, BaseAgentExecutor):
         event_queue: EventQueue,
         task: Task | None,
     ) -> None:
-        pass
+        params: MessageSendParams = request.params
+        query = _get_user_query(params)
+
+        if not task:
+            task = create_task_obj(params)
+
+        agent_response = asyncio.create_task(self.execute(
+            query
+        ))
+
+        reason_index = 0
+
+        while not agent_response.done():
+            current_reasoning = self.get_execution_reasoning()
+            if current_reasoning and len(current_reasoning) != reason_index:
+                reason_index = len(current_reasoning)
+                intermediate_task = create_task_obj(params)
+                update_task_with_agent_reasoning(intermediate_task, current_reasoning[reason_index-1:])
+                event_queue.enqueue_event(intermediate_task)
+            await asyncio.sleep(1)
+
+        result = await agent_response
+        update_task_with_agent_response(task, result)
+        event_queue.enqueue_event(task)
