@@ -16,13 +16,6 @@ def tool_knowledge_format(tools: List[BaseTool] = None) -> str:
 
 class AgentTool:
 
-    mcp_servers_map = None
-    mcp_servers = None
-    langchain_tool_map = None
-    tool_type = None
-    agent_tool = None
-    langchain_tools = None
-
     def __init__(self, langchain_tools: List[BaseTool] = list(), mcp_servers: List[MCPServer] = list()):
         self.langchain_tools = langchain_tools
         self.mcp_servers = mcp_servers
@@ -31,7 +24,6 @@ class AgentTool:
         self.mcp_servers_map = {}
         self.langchain_tool_map = {}
 
-    @classmethod
     async def get_tool(self):
         if self.langchain_tools:
             for langchain_tool in self.langchain_tools:
@@ -40,9 +32,10 @@ class AgentTool:
                 self.langchain_tool_map[langchain_tool.name] = langchain_tool
         if self.mcp_servers:
             for mcp_server in self.mcp_servers:
-                async with mcp_server.connect() as session:
+                session = await mcp_server.connect()
+                async with session:
                     mcp_tools = await session.list_tools()
-                    for mcp_tool in mcp_tools:
+                    for mcp_tool in mcp_tools.tools:
                         schema = mcp_tool.inputSchema
                         schema["description"] = mcp_tool.description
                         self.agent_tool[mcp_tool.name] = schema
@@ -63,5 +56,6 @@ class AgentTool:
         if self.tool_type[name] == "langchain":
             return self.langchain_tool_map[name].invoke(arg)
         server = self.mcp_servers_map[name]
-        async with server.connect() as session:
+        session = await server.connect()
+        async with session:
             return await session.tool_calling(name, arg)
