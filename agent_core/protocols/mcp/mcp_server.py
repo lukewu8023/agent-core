@@ -35,6 +35,7 @@ class MCPServer:
                 )
             )
             await session.initialize()
+            self.session = session
             return session
         except Exception:
             await self.cleanup()

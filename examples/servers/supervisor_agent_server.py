@@ -51,7 +51,7 @@ app = FastAPI()
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    agent = SuperVisorAgent(['http://localhost:8882'])
+    agent = SuperVisorAgent(['http://localhost:8882', 'http://localhost:8881'])
 
     while True:
         data = await websocket.receive_text()

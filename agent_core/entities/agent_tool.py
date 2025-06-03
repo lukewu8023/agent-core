@@ -1,5 +1,7 @@
 from typing import List, Any
 from langchain_core.tools import BaseTool
+from mcp import ClientSession
+
 from agent_core.protocols.mcp.mcp_server import MCPServer
 import json
 
@@ -34,8 +36,8 @@ class AgentTool:
             for mcp_server in self.mcp_servers:
                 session = await mcp_server.connect()
                 async with session:
-                    mcp_tools = await session.list_tools()
-                    for mcp_tool in mcp_tools.tools:
+                    mcp_tools = await mcp_server.get_tools()
+                    for mcp_tool in mcp_tools:
                         schema = mcp_tool.inputSchema
                         schema["description"] = mcp_tool.description
                         self.agent_tool[mcp_tool.name] = schema
@@ -52,10 +54,13 @@ class AgentTool:
             return self.langchain_tool_map[name].description
         return self.agent_tool[name]["description"]
 
+    def get_tool_schema(self, name: str):
+        return self.agent_tool[name]
+
     async def execute_tool(self, name: str, arg: Any = None):
         if self.tool_type[name] == "langchain":
             return self.langchain_tool_map[name].invoke(arg)
         server = self.mcp_servers_map[name]
-        session = await server.connect()
-        async with session:
-            return await session.tool_calling(name, arg)
+        await server.connect()
+        return await server.tool_calling(name, arg)
+

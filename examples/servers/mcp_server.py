@@ -42,10 +42,10 @@ def get_metric(
 
 @mcp.tool("log")
 def get_log(
-    component: Annotated[str, "component name"],
-    eventId: Annotated[int, "event id"],
-    startTime: Annotated[int, "start time"],
-    endTime: Annotated[int, "end time"],
+    component: Annotated[str, "component"],
+    eventId: Annotated[int, "eventId"],
+    startTime: Annotated[int, "startTime"],
+    endTime: Annotated[int, "endTime"],
 ) -> dict:
     """Get log from kibana by component name and event id"""
     return {

@@ -724,7 +724,7 @@ tool response : {tool_response}
     def process_tool_description(self, node: Node):
         tool_description = ""
         if node.use_tool:
-            tool_description = self.plan_graph.agent_tool.get_tool_description(node.tool_name)
+            tool_description = self.plan_graph.agent_tool.get_tool_schema(node.tool_name)
         return tool_description
 
     async def _evaluate_node(

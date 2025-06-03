@@ -1,11 +1,20 @@
+from langchain_core.tools import tool
+
 from agent_core.agents.a2a_agent import A2AAgent
 from agent_core.protocols.a2a.server import A2AServer
 from agent_core.protocols.a2a.server.request_handlers import DefaultA2ARequestHandler
 from agent_core.protocols.a2a.types import AgentCapabilities, AgentSkill, AgentCard, AgentAuthentication
 
 
+@tool("emc")
+def emc() -> str:
+    """Explain what is EMC"""
+    return "EMC : Event Master Center"
+
+
 qa_agent = A2AAgent()
-qa_agent.background = "EMC : Event Master Center"
+qa_agent.tools = [emc]
+qa_agent.enable_evaluators()
 capabilities = AgentCapabilities(streaming=False, pushNotifications=False)
 qa_skill = AgentSkill(
     id="qa_agent_skill",

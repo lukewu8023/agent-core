@@ -126,7 +126,7 @@ class GenericPlanner(BasePlanner):
             """
             step.prompt = final_prompt
             self.logger.info(f"Executing Step {idx}: {step.description}")
-            response = self.executor.execute(final_prompt)
+            response = await self.executor.execute(final_prompt)
             step.result = response
             self.logger.info(f"Response for Step {idx}: {response}")
 

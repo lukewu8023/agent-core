@@ -10,6 +10,7 @@ from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
 from agent_core.entities.agent_tool import AgentTool
 from agent_core.entities.steps import Steps, Step, Summary
+from agent_core.planners.no_planner import NoPlanner
 from agent_core.protocols.mcp.mcp_server import MCPServer
 from agent_core.models.model_registry import ModelRegistry
 from agent_core.planners.base_planner import BasePlanner
@@ -86,7 +87,7 @@ class Agent(AgentBasic):
         super().__init__(self.__class__.__name__, model_name, log_level)
         self._execution_history: Steps = Steps()
 
-        self.planner = None
+        self.planner = NoPlanner(model_name, log_level)
         self.tools: Optional[List[BaseTool]] = None
         self.mcp_servers: Optional[List[MCPServer]] = None
 
@@ -117,8 +118,8 @@ class Agent(AgentBasic):
         self.logger.info(f"Agent is executing task: {task}")
 
         # Case 1: No planner => direct single-step
-        if not self.planner:
-            return await self.execute_without_planner(task)
+        # if not self.planner:
+        #     return await self.execute_without_planner(task)
 
         # Case 2: Using a planner => first create steps/graph
         current_categories = list(self.evaluators.keys())
