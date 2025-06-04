@@ -12,18 +12,18 @@ def emc() -> str:
     return "EMC : Event Master Center"
 
 
-qa_agent = A2AAgent()
-qa_agent.tools = [emc]
-qa_agent.enable_evaluators()
+qna_agent = A2AAgent()
+qna_agent.tools = [emc]
+qna_agent.enable_evaluators()
 capabilities = AgentCapabilities(streaming=False, pushNotifications=False)
 qa_skill = AgentSkill(
-    id="qa_agent_skill",
+    id="qna_agent_skill",
     name="QA agent skill",
     description="Answer user questions based on knowledge",
     tags=["Q & A", "answer question"],
     examples=["What is github?"],
 )
-qa_agent_card = AgentCard(
+qna_agent_card = AgentCard(
     name="QA Agent",
     description="Helps with answer user query based on knowledge",
     url=f"http://localhost:8881/",
@@ -36,9 +36,9 @@ qa_agent_card = AgentCard(
 )
 
 serverA = A2AServer(
-    agent_card=qa_agent_card,
+    agent_card=qna_agent_card,
     request_handler=DefaultA2ARequestHandler(
-        agent_executor=qa_agent
+        agent_executor=qna_agent
     )
 )
 

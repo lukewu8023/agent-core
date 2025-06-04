@@ -72,6 +72,7 @@ class Summary(BaseModel):
     summary: Optional[str] = ""
     output_result: Optional[Any] = ""
     conclusion: Optional[str] = ""
+    answer: Optional[str] = ""
 
 
 class Steps(BaseModel):

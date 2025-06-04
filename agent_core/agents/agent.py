@@ -10,7 +10,7 @@ from langchain_core.tools import BaseTool
 from agent_core.agent_basic import AgentBasic
 from agent_core.entities.agent_tool import AgentTool
 from agent_core.entities.steps import Steps, Step, Summary
-from agent_core.planners.no_planner import NoPlanner
+from agent_core.planners import GraphPlanner
 from agent_core.protocols.mcp.mcp_server import MCPServer
 from agent_core.models.model_registry import ModelRegistry
 from agent_core.planners.base_planner import BasePlanner
@@ -36,6 +36,9 @@ DEFAULT_SUMMARY_PROMPT = """
 You are an assistant summarizing the outcome of a multi-step plan execution.
 Below is the complete step-by-step execution history. Provide a well-structured summary describing how the solution was achieved and any notable details, make sure to include each step's result in the final summary. 
 
+**Task**
+{task}
+
 **Execution History**
 {history_text}
 
@@ -43,6 +46,7 @@ Below is the complete step-by-step execution history. Provide a well-structured 
 {{
     "summary": "A detailed summary of how the solution was achieved",
     "output_result": "The final output/result of the execution",
+    "answer": "Answer the origin task based on the execution history"
     "conclusion": "A brief conclusion about the overall execution"
 }}
 
@@ -87,7 +91,7 @@ class Agent(AgentBasic):
         super().__init__(self.__class__.__name__, model_name, log_level)
         self._execution_history: Steps = Steps()
 
-        self.planner = NoPlanner(model_name, log_level)
+        self.planner = GraphPlanner(model_name, log_level)
         self.tools: Optional[List[BaseTool]] = None
         self.mcp_servers: Optional[List[MCPServer]] = None
 
@@ -143,9 +147,9 @@ class Agent(AgentBasic):
             evaluators_enabled=self.evaluators_enabled,
             evaluators=self.evaluators,
         )
-        agent_result = await self.get_execution_result_summary()
+        agent_result = await self.get_execution_result_summary(task)
         self.get_token()
-        return agent_result.output_result
+        return agent_result.answer
 
     async def execute_without_planner(self, task: str):
         context_section = self.context.context_to_str()
@@ -246,7 +250,7 @@ class Agent(AgentBasic):
         final_response = await self._model.process(final_response_prompt)
         return str(final_response)
 
-    async def get_execution_result_summary(self) -> Summary:
+    async def get_execution_result_summary(self, task: str) -> Summary:
         """
         Produce an overall summary describing how the solution was completed,
         using the LLM (agent's model) to format the final explanation if desired.
@@ -258,7 +262,7 @@ class Agent(AgentBasic):
             ), conclusion="")
 
         history_text = self._execution_history.execution_history_to_str()
-        final_prompt = self.summary_prompt.format(history_text=history_text)
+        final_prompt = self.summary_prompt.format(task=task, history_text=history_text)
 
         self.logger.info("Generating execution result summary.")
         summary_response = await self._model.process(final_prompt)
