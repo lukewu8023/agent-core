@@ -18,13 +18,13 @@ qna_agent.enable_evaluators()
 capabilities = AgentCapabilities(streaming=False, pushNotifications=False)
 qa_skill = AgentSkill(
     id="qna_agent_skill",
-    name="QA agent skill",
+    name="QNA agent skill",
     description="Answer user questions based on knowledge",
     tags=["Q & A", "answer question"],
     examples=["What is github?"],
 )
 qna_agent_card = AgentCard(
-    name="QA Agent",
+    name="QNA Agent",
     description="Helps with answer user query based on knowledge",
     url=f"http://localhost:8881/",
     version="1.0.0",
